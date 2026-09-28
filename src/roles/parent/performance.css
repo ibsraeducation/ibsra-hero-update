@@ -1,0 +1,236 @@
+/* ==========================================================================
+   Parent · performance analysis. Cards, lists and badges come from the
+   shared system (.card, .pd-*, Panel); this file adds the slicer, the
+   figure strip, the section heads, the target bar and the motion.
+   Every colour reads the shared tokens, so both themes hold. Kept apart
+   from index.css because that file is shared ground.
+   ========================================================================== */
+
+/* ---------- motion ----------
+   Sections rise in one after another, bars grow from the left, numbers
+   count up (in the component). The global reduced-motion rule in index.css
+   collapses all of it to an instant for anyone who asked for that. */
+@keyframes pf-rise { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
+@keyframes pf-grow { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+
+.pf-rise { animation: pf-rise 460ms cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 90ms); }
+.pf-grow {
+  display: block; height: 100%; border-radius: 99px; transform-origin: left center;
+  animation: pf-grow 750ms cubic-bezier(.2, .7, .2, 1) both; animation-delay: var(--d, 0ms);
+}
+
+/* ---------- tabs + slicer on one row ----------
+   Page tabs on the left, the three slice dropdowns on the right, sharing one
+   rule underneath. On a narrow screen the dropdowns wrap below the tabs. */
+.pf-top {
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap;
+  gap: 4px 20px; margin-bottom: 16px; border-bottom: 1px solid var(--line);
+}
+.pf-top .pf-tabs { margin-bottom: 0; border-bottom: 0; }
+.pf-picks { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-bottom: 7px; }
+/* Each option already says what it is ("AI Video · In progress", "S2 · …"),
+   so the dropdowns carry their label as aria-label rather than on screen. */
+.pf-pick.sel { width: auto; max-width: 210px; }
+@media (max-width: 720px) {
+  .pf-picks { width: 100%; }
+  .pf-pick.sel { flex: 1 1 100%; max-width: none; }
+}
+
+/* ---------- the slice at a glance ---------- */
+.pf-hero { overflow: hidden; }
+.pf-figs {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px;
+  background: var(--line-soft); border-block: 1px solid var(--line-soft);
+}
+.pf-fig { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 14px 18px 16px; background: var(--surface); }
+.pf-fig-val {
+  font-size: 24px; font-weight: 650; letter-spacing: -.03em; line-height: 1.1;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.pf-fig-bar { position: relative; display: block; height: 5px; border-radius: 99px; background: var(--surface-3); }
+.pf-fig-bar .pf-tick { top: -3px; bottom: -3px; }
+.pf-fig-sub { font-size: 11.5px; color: var(--muted-2); }
+@media (max-width: 760px) { .pf-figs { grid-template-columns: 1fr; } }
+
+/* ---------- the four pages ----------
+   Plain text tabs on a rule. The active page is the one thing marked in the
+   accent colour, matching the selected slicer chips. */
+.pf-tabs { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.pf-tabs::-webkit-scrollbar { display: none; }
+.pf-tab {
+  position: relative; flex: none; padding: 9px 12px 10px;
+  font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap;
+  transition: color var(--fast);
+}
+.pf-tab:hover { color: var(--ink); }
+.pf-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--r-sm); }
+.pf-tab.active { color: var(--brand); font-weight: 600; }
+.pf-tab.active::after {
+  content: ""; position: absolute; inset-inline: 8px; bottom: 0; height: 2px;
+  background: var(--brand); border-radius: 2px 2px 0 0;
+}
+
+/* Learning rates: four line charts, two to a row once there is room. */
+.pf-learn-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; }
+@media (max-width: 620px) { .pf-learn-grid { grid-template-columns: 1fr; } }
+
+/* Session numbers under a line chart, evenly spaced under its points. */
+.pf-chart-x { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-2); }
+
+.pf-portfolio-total { padding-top: 10px; border-top: 1px dashed var(--line); }
+
+/* Character: ten small charts, five to a row, each a tap away from its
+   one line of evidence. */
+.pf-char-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 980px) { .pf-char-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .pf-char-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pf-char-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 16px 10px; border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--surface); color: inherit; font: inherit; text-align: center; cursor: pointer;
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.pf-char-card:hover { border-color: var(--line-hard); }
+.pf-char-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pf-char-card[aria-expanded="true"] { border-color: var(--brand); box-shadow: var(--ring); }
+.pf-char-note { font-size: 11px; line-height: 1.5; color: var(--muted-2); }
+
+/* "Ask the mentor" on every chart — same pill as "See the proof", teal so
+   the two are never confused for the same action. */
+.ask-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; height: 22px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: 99px; background: var(--surface);
+  font-size: 11px; font-weight: 600; color: var(--teal-600); text-decoration: none;
+}
+.ask-chip:hover { border-color: var(--teal-500); background: var(--teal-weak, var(--surface-2)); }
+.ask-chip:focus-visible { outline: 2px solid var(--teal-500); outline-offset: 2px; }
+.ask-chip svg { width: 12px; height: 12px; }
+
+/* which slice a detail page is reading, beside its heading */
+.pf-where {
+  display: inline-flex; align-items: center; gap: 8px; flex: none; max-width: 45%;
+  font-size: 12px; color: var(--muted);
+}
+
+/* ---------- overview: the doors into the other three pages ---------- */
+.pf-doors { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+@media (max-width: 1180px) { .pf-doors { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- a panel's explanation, folded into a dropdown ---------- */
+.pf-more > summary {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none;
+  font-size: 12px; font-weight: 600; color: var(--muted); user-select: none;
+}
+.pf-more > summary::-webkit-details-marker { display: none; }
+.pf-more > summary::before {
+  content: ""; width: 6px; height: 6px; margin-top: -2px; flex: none;
+  border-inline-end: 1.5px solid currentColor; border-block-end: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform var(--fast);
+}
+.pf-more[open] > summary::before { transform: rotate(45deg); margin-top: -4px; }
+.pf-more > summary:hover { color: var(--ink); }
+.pf-more > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: var(--r-xs); }
+.pf-more-body { margin-top: 8px; font-size: 12px; line-height: 1.65; color: var(--muted-2); }
+.pf-more-body p { margin: 0 0 6px; }
+.pf-more-body p:last-child { margin-bottom: 0; }
+
+/* an owned asset's value: score, what it is made of, and a short bar */
+.pf-asset-value { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; font-size: 12px; }
+
+/* the assets page lays its pieces out two across */
+.pf-assets-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.pf-assets-grid .pd-asset + .pd-asset { border-top: 0; padding-top: 0; }
+.pf-assets-grid .pd-asset { padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+@media (max-width: 760px) { .pf-assets-grid { grid-template-columns: 1fr; } }
+.pf-door {
+  display: flex; flex-direction: column; gap: 10px; padding: 16px;
+  transition: border-color var(--fast);
+}
+.pf-door:hover { border-color: var(--ink-2); }
+.pf-door:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pf-door-go { width: 16px; height: 16px; flex: none; color: var(--muted-2); transition: transform var(--fast), color var(--fast); }
+.pf-door:hover .pf-door-go { color: var(--ink); transform: translateX(3px); }
+@media (max-width: 900px) {
+  .pf-doors { grid-template-columns: 1fr; }
+  .pf-where { display: none; }
+}
+
+/* ---------- sections ---------- */
+.pf-sec { margin-top: 28px; scroll-margin-top: 16px; }
+.pf-sec-head { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+
+/* Return page: the overall figure on top, the per-asset table under it. */
+.pf-return-stack { display: flex; flex-direction: column; gap: 14px; }
+.pf-return-stack .pf-a-target { order: -1; }
+/* Amounts read as one unit — "EGP 2,300" never breaks across two lines. */
+.pf-page .tbl td.num, .pf-page .tbl th { white-space: nowrap; }
+
+/* ---------- inside the panels ---------- */
+.pf-score {
+  font-size: 28px; font-weight: 650; letter-spacing: -.03em; line-height: 1;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.pf-bar { display: block; height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.pf-cell { flex: none; min-width: 38px; text-align: end; }
+.pf-page .pd-list li[data-state="miss"] { color: var(--ink); }
+.pf-page .pd-list li[data-state="miss"] svg { color: var(--rose-500); }
+/* The figure at the end of a row stays on one line; the name is what truncates. */
+.pf-page .pd-list li > .t-xs { flex: none; white-space: nowrap; }
+.pf-page .pd-list li > .grow { min-width: 0; }
+
+/* ---------- increase / decrease ---------- */
+.pf-trend { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 12px; font-weight: 600; }
+.pf-trend svg { width: 13px; height: 13px; }
+.pf-trend[data-dir="up"] { color: var(--teal-600); }
+.pf-trend[data-dir="down"] { color: var(--rose-600); }
+.pf-trend[data-dir="none"] { color: var(--muted-2); font-weight: 500; }
+
+/* ---------- return against the 0.5× target ---------- */
+.pf-target { display: flex; align-items: flex-start; gap: 28px; flex-wrap: wrap; }
+.pf-target > .grow { min-width: 240px; }
+.pf-bullet-track { position: relative; height: 12px; margin-top: 6px; border-radius: 99px; background: var(--surface-3); }
+.pf-bullet-fill { position: absolute; top: 0; bottom: 0; left: 0; }
+.pf-tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--ink-2); }
+.pf-tick[data-kind="full"] { background: repeating-linear-gradient(to bottom, var(--muted-2) 0 3px, transparent 3px 5px); }
+.pf-median {
+  position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+  border-radius: 99px; background: var(--surface); border: 2px solid var(--sky-500);
+}
+.pf-bullet-scale { position: relative; height: 15px; font-size: 11px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.pf-bullet-scale span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.pf-bullet-scale span:first-child { transform: none; }
+.pf-key-dot {
+  display: inline-block; width: 9px; height: 9px; margin-inline-end: 5px; vertical-align: -1px;
+  border-radius: 99px; border: 2px solid var(--sky-500); background: var(--surface);
+}
+
+/* ==========================================================================
+   Plain theme for this page: black and grey on white, thin borders, no
+   shadows, no motion. One accent only — the brand colour marks what is
+   selected in the slicer, and nothing else. Scoped to .pf-page so the shared
+   classes it overrides keep their look on every other page.
+   ========================================================================== */
+.pf-page .card { box-shadow: none; }
+
+.pf-page .badge { background: transparent; border-color: var(--line-hard); color: var(--muted); }
+
+
+.pf-page .pf-grow { background: var(--ink-2) !important; }
+.pf-page .pf-rise, .pf-page .pf-grow { animation: none; }
+
+.pf-page .pd-list li svg,
+.pf-page .pd-list li[data-state] svg { color: var(--muted-2); }
+.pf-page .pd-list li[data-state="have"],
+.pf-page .pd-list li[data-state="miss"] { color: var(--ink); }
+.pf-page .pd-list li[data-state="now"] { color: var(--ink); font-weight: 500; }
+
+.pf-page .pd-asset .pd-asset-ico,
+.pf-page .pd-asset[data-state] .pd-asset-ico { background: var(--surface-3); color: var(--muted); }
+
+.pf-page .pf-trend[data-dir="up"],
+.pf-page .pf-trend[data-dir="down"] { color: var(--ink-2); }
+
+.pf-page .pf-median, .pf-page .pf-key-dot { border-color: var(--ink-2); }
+
+.pf-page .discl { background: var(--surface-2); border-color: var(--line); }
+.pf-page .discl > svg { color: var(--muted-2); }

@@ -1,0 +1,104 @@
+/* ==========================================================================
+   The program and course forms.
+
+   One dialog size whichever tab is open, so nothing jumps as the admin moves
+   between what it is called, what it covers and what it is worth. Only the
+   body scrolls, and the outline editors fill the pane rather than sitting at
+   a fixed height inside a taller one.
+   ========================================================================== */
+
+.modal.pf-modal {
+  width: min(1000px, calc(100vw - 32px));
+  height: min(720px, calc(100dvh - 32px));
+  max-height: none;
+}
+.pf-modal .modal-head { padding: 20px 24px 4px; }
+.pf-modal .modal-head h2 { font-size: 18px; letter-spacing: -.015em; }
+.pf-modal .modal-body { padding: 0 24px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.pf-modal .modal-foot { margin-top: 0; padding: 14px 24px 18px; }
+
+.pf { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.pf-tabs { flex: none; border-bottom: 1px solid var(--line-soft); margin-bottom: 18px; }
+.pf-tabs .tabs { border-bottom: 0; padding-inline: 0; background: transparent; }
+.pf-tabs .tab[data-on="true"]::after { bottom: 0; }
+
+.pf-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; padding-bottom: 6px; }
+
+/* The About tab: a short column, left alone to breathe. */
+.pf-col { display: flex; flex-direction: column; gap: 20px; max-width: 520px; }
+.pf-col .sel { max-width: 100%; }
+
+.pf-switch {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 14px 16px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface-2);
+}
+
+.pf-note {
+  flex: none; margin: 0 0 12px; font-size: 12.5px; line-height: 1.55; color: var(--muted);
+}
+.pf-note code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11.5px;
+  padding: 1px 4px; border-radius: 4px; background: var(--surface-3); color: var(--ink-2);
+}
+
+/* ---------- "What it covers": the admin's own tabs ---------- */
+.cv { display: flex; flex-direction: column; min-height: 0; gap: 14px; }
+.cv-bar { display: flex; align-items: center; }
+.cv-bar .ptabs-scroll { flex: 1; }
+.cv-bar .tab { max-width: 200px; }
+.cv-add {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  margin-inline-start: 6px; padding: 5px 10px; border-radius: 99px;
+  border: 1px dashed var(--line-hard); background: transparent;
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer;
+  transition: color var(--fast), border-color var(--fast), background var(--fast);
+}
+.cv-add svg { width: 13px; height: 13px; }
+.cv-add:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-weak); }
+.cv-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cv-head .inp { max-width: 340px; }
+
+
+/* The two editing tabs fill the pane. */
+.pf-body > .cv,
+.pf-body > .md-grid.fill,
+.pf-body > .field.pf-fill { flex: 1; min-height: 0; }
+.cv > .md-grid.fill { flex: 1; min-height: 220px; }
+.field.pf-fill .md-grid.fill { min-height: 220px; }
+.field.pf-fill { display: flex; flex-direction: column; }
+.field.pf-fill > .mt8 { flex: 1; min-height: 0; margin-top: 10px; }
+
+/* ---------- Markdown beside its bullets ---------- */
+.md-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.md-grid.fill { align-items: stretch; height: 100%; }
+.md-ta {
+  height: 300px; min-height: 160px; max-height: 60vh;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12.5px; line-height: 1.6; tab-size: 2;
+}
+.md-grid.fill .md-ta { height: auto; flex: 1; min-height: 0; max-height: none; }
+.md-grid.fill > .stack { min-height: 0; }
+.md-prev {
+  height: 300px; overflow: auto; padding: 12px 16px 16px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.md-grid.fill .md-prev { height: auto; min-height: 0; }
+.md-prev[data-example="true"] .mdo { opacity: .55; }
+.md-prev-label {
+  display: block; margin-bottom: 10px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-2);
+}
+.md-grid .hint code, .md-grid .hint kbd {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10.5px;
+  padding: 0 3px; border-radius: 3px; background: var(--surface-3); color: var(--ink-2);
+}
+
+@media (max-width: 860px) {
+  .modal.pf-modal { width: calc(100vw - 16px); height: calc(100dvh - 16px); }
+  .pf-modal .modal-head, .pf-modal .modal-body, .pf-modal .modal-foot { padding-inline: 16px; }
+  .md-grid { grid-template-columns: minmax(0, 1fr); }
+  .md-grid.fill { display: flex; flex-direction: column; }
+  .md-ta { height: 220px; }
+  .md-prev { height: auto; max-height: 320px; }
+  .md-grid.fill .md-prev { flex: none; max-height: 40%; }
+}

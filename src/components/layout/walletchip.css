@@ -1,0 +1,38 @@
+/* ==========================================================================
+   The wallet balance in the top bar.
+
+   Same shape as the renewal clock it sits next to, so the two read as one
+   row of state rather than two widgets. Brand-tinted while there is money on
+   the account, plain once it runs out — an empty wallet is not an alarm.
+   ========================================================================== */
+
+.wl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 27px;
+  padding-inline: 9px;
+  border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--line-hard));
+  border-radius: 99px;
+  background: var(--brand-weak);
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.wl-pill:hover { border-color: var(--brand); }
+
+.wl-pill svg { width: 14px; height: 14px; flex: none; }
+
+.wl-what { font-weight: 500; opacity: 0.75; }
+
+.wl-pill[data-empty='true'] {
+  border-color: var(--line-hard);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.wl-pill[data-empty='true']:hover { border-color: var(--ink-2); color: var(--ink-2); }

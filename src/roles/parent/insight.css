@@ -1,0 +1,208 @@
+/* ==========================================================================
+   Parent overview · AI summary + mentor feedback, the assistant pop-up,
+   the mentor chat page and the admin feedback page. Kept out of index.css,
+   which is shared ground. Every colour reads the shared tokens.
+   ========================================================================== */
+
+.ins-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+@media (max-width: 900px) { .ins-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.ins-card { display: flex; flex-direction: column; min-width: 0; }
+.ins-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ins-ico {
+  display: grid; place-items: center; width: 32px; height: 32px; flex: none;
+  border-radius: var(--r-md); background: var(--brand-weak, var(--surface-3)); color: var(--brand);
+}
+.ins-ico[data-tone="teal"] { background: var(--teal-100); color: var(--teal-600); }
+.ins-ico svg { width: 16px; height: 16px; }
+.ins-ico.sm { width: 28px; height: 28px; }
+.ins-ico.sm svg { width: 14px; height: 14px; }
+
+/* Mentor feedback collapsed to one line — a pill button, not a card. Click
+   opens the same day-by-day pop-up the full card uses. */
+.mf-pill {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; margin-top: 16px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  cursor: pointer; text-align: start; font: inherit; color: inherit;
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.mf-pill:hover { border-color: var(--teal-500); box-shadow: var(--sh-2); }
+.mf-pill:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.ins-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; flex: 1 1 auto; }
+.ins-lead { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.5; }
+.ins-list { display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.ins-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }
+.ins-list li svg { width: 14px; height: 14px; flex: none; margin-top: 2px; color: var(--muted-2); }
+.ins-next {
+  display: flex; align-items: flex-start; gap: 7px; margin: 0;
+  font-size: 12.5px; line-height: 1.55; color: var(--ink);
+}
+.ins-next svg { width: 14px; height: 14px; flex: none; margin-top: 2px; color: var(--brand); }
+.ins-quote {
+  margin: 0; padding: 2px 0 2px 12px; border-inline-start: 3px solid var(--teal-500);
+  font-size: 13.5px; line-height: 1.65; color: var(--ink);
+}
+
+.ins-foot {
+  display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 14px;
+  border-top: 1px solid var(--line-soft); background: var(--surface-2);
+  border-end-start-radius: var(--r-lg); border-end-end-radius: var(--r-lg);
+}
+.ins-foot > .btn { align-self: flex-start; }
+.ins-stamp { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.ins-stamp svg { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--teal-600); }
+.ins-stamp b { color: var(--ink); font-weight: 600; }
+
+/* the field that opens the assistant */
+.ins-ask {
+  display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface);
+  cursor: text; transition: border-color var(--fast), box-shadow var(--fast);
+}
+.ins-ask:hover { border-color: var(--brand); }
+.ins-ask:focus-within { border-color: var(--brand); box-shadow: var(--ring); }
+.ins-ask > svg { width: 16px; height: 16px; flex: none; color: var(--brand); }
+.ins-ask input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 13px; color: var(--ink); cursor: pointer;
+}
+.ins-ask .ins-ask-go { color: var(--muted-2); }
+
+.chip-q {
+  display: inline-flex; align-items: center; min-height: 26px; padding: 3px 10px;
+  border: 1px solid var(--line); border-radius: 99px; background: var(--surface);
+  font-size: 12px; color: var(--ink-2); cursor: pointer; text-align: start;
+  transition: border-color var(--fast), color var(--fast), background var(--fast);
+}
+.chip-q:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.chip-q:disabled { opacity: .5; cursor: default; }
+
+/* ---------- the assistant pop-up ---------- */
+.chat-log {
+  display: flex; flex-direction: column; gap: 12px;
+  height: min(52vh, 460px); overflow-y: auto; padding: 4px 2px 8px;
+}
+.chat-hello {
+  display: flex; gap: 10px; padding: 12px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line-soft); line-height: 1.55;
+}
+.chat-msg { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
+.chat-msg[data-role="user"] { align-self: flex-end; flex-direction: row-reverse; }
+.chat-avatar {
+  display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 99px;
+  background: var(--brand-weak, var(--surface-3)); color: var(--brand);
+}
+.chat-avatar[data-tone="teal"] { background: var(--teal-100); color: var(--teal-600); }
+.chat-avatar svg { width: 15px; height: 15px; }
+.chat-bubble {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  padding: 9px 12px; border-radius: 14px; border-end-start-radius: 4px;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  font-size: 13px; line-height: 1.6; color: var(--ink);
+}
+.chat-msg[data-role="user"] .chat-bubble {
+  background: var(--brand); color: var(--on-brand, #fff); border-color: transparent;
+  border-radius: 14px; border-end-end-radius: 4px;
+}
+.chat-msg[data-role="user"] .chat-src { color: inherit; opacity: .75; }
+.chat-src { font-size: 10.5px; color: var(--muted-2); }
+.chat-handoff {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px;
+  border-radius: var(--r-md); background: var(--surface); border: 1px dashed var(--teal-500);
+}
+.chat-handoff .btn { align-self: flex-start; }
+.chat-ready { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.chat-compose { display: flex; align-items: flex-end; gap: 8px; width: 100%; }
+.chat-compose .ta { flex: 1 1 auto; min-height: 40px; max-height: 140px; resize: vertical; }
+.modal-foot:has(.chat-compose) { justify-content: stretch; }
+
+/* ---------- parent · ask the mentor ---------- */
+.mc-card { display: flex; flex-direction: column; max-width: 860px; }
+.mc-log {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  min-height: 260px; max-height: 56vh; overflow-y: auto;
+}
+.mc-compose { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--line-soft); background: var(--surface-2); }
+.mc-attach {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 2px 4px 2px 10px; border-radius: 99px; border: 1px solid var(--line);
+  background: var(--surface); font-size: 12px; color: var(--ink-2);
+}
+.mc-attach svg { width: 13px; height: 13px; }
+.mc-ctx { font-size: 12px; }
+.mc-ctx summary { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; opacity: .85; }
+.mc-ctx summary svg { width: 13px; height: 13px; }
+.mc-ctx ul { margin: 8px 0 0; padding-inline-start: 16px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- admin · mentor feedback ---------- */
+.mf-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .mf-layout { grid-template-columns: minmax(0, 1fr); } }
+.mf-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-height: calc(100vh - 220px); }
+.mf-search { display: flex; align-items: center; gap: 6px; padding: 0 6px; border-bottom: 1px solid var(--line-soft); }
+.mf-search svg { width: 14px; height: 14px; color: var(--muted-2); }
+.mf-row {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: var(--r-md); background: transparent; color: inherit; text-align: start; cursor: pointer;
+}
+.mf-row:hover { background: var(--surface-3); }
+.mf-row[data-on="true"] { background: var(--brand-weak, var(--surface-3)); }
+
+/* ---------- one chat, two homes: the pop-up and the Ask AI tab ---------- */
+.chat { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.chat[data-variant="page"] { padding: 14px 16px 16px; }
+.chat[data-variant="page"] .chat-log { height: max(360px, calc(100vh - 430px)); }
+.chat .chat-compose { padding-top: 2px; }
+
+/* answers read as short bullets */
+.chat-ul { display: flex; flex-direction: column; gap: 5px; margin: 0; padding-inline-start: 18px; }
+.chat-ul li { line-height: 1.55; }
+.chat-ul li::marker { color: var(--brand); }
+.chat-p { margin: 0; line-height: 1.6; }
+.chat-hello .chat-ul { font-size: 12.5px; color: var(--muted); }
+
+/* ---------- Ask AI tab ---------- */
+.ask-page { display: flex; flex-direction: column; min-width: 0; }
+
+/* ---------- a detail page's own mentor note ---------- */
+.pf-feedback { margin-bottom: 16px; }
+.ins-card[data-wide="true"] .ins-body { padding-block: 12px; }
+.ins-foot[data-row="true"] { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+
+/* admin: which report page a note is for — the dot is today's status */
+.mf-page[data-on="true"] { border-color: var(--brand); color: var(--brand); background: var(--brand-weak, var(--surface-3)); }
+.mf-dot { width: 7px; height: 7px; margin-inline-end: 6px; border-radius: 99px; background: var(--gold-500); flex: none; }
+.mf-dot[data-done="true"] { background: var(--teal-500); }
+
+/* ---------- mentor feedback: the card opens, the pop-up slides through days ---------- */
+.fb-card { cursor: pointer; transition: border-color var(--fast), box-shadow var(--fast); }
+.fb-card:hover { border-color: var(--teal-500); box-shadow: var(--sh-2); }
+.fb-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.fb { display: flex; flex-direction: column; gap: 14px; }
+.fb-slicer { display: flex; align-items: center; gap: 6px; }
+.fb-days {
+  display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; overflow-x: auto; padding: 2px;
+  scrollbar-width: thin;
+}
+.fb-day { flex: none; }
+.fb-day[data-on="true"] { border-color: var(--teal-500); background: var(--teal-100); color: var(--teal-600); font-weight: 600; }
+.fb-pick {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; height: 30px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); color: var(--muted);
+}
+.fb-pick svg { width: 14px; height: 14px; }
+.fb-pick input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 12px; color: var(--ink); color-scheme: light dark; }
+.fb-note {
+  display: flex; flex-direction: column; gap: 10px; min-height: 140px;
+  padding: 14px 16px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line-soft);
+}
+
+/* admin: earlier notes under the form */
+.mf-earlier { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.mf-earlier ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.mf-earlier li { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 12.5px; color: var(--ink-2); }
+.mf-earlier li b { flex: none; width: 88px; font-weight: 600; color: var(--ink); }

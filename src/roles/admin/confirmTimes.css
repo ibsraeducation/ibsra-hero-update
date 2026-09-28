@@ -1,0 +1,84 @@
+/* ConfirmTimes.tsx — the times, at the moment they are confirmed. Wide
+   targets, because this gets used one-handed with a phone at the ear. */
+
+.ct-slots { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ct-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 132px;
+  padding: 8px 30px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--ink);
+  transition: border-color .12s, background .12s;
+}
+.ct-slot:hover { border-color: var(--line-hard); }
+.ct-slot:focus-visible { outline: none; box-shadow: var(--ring); }
+.ct-slot[data-on] { border-color: var(--brand); background: var(--brand-weak); }
+/* A section hour on a day this student's lecture already takes. Still
+   listed -- it exists and another student may sit it -- but not theirs. */
+.ct-slot[data-off] { opacity: .5; cursor: default; }
+.ct-slot[data-off]:hover { border-color: var(--line); }
+.ct-slot[data-off] .ct-slot-day { text-decoration: line-through; }
+
+.ct-slot-day {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted-2);
+}
+.ct-slot[data-on] .ct-slot-day { color: var(--brand); }
+.ct-slot-time { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ct-slot-sub { font-size: 11px; color: var(--muted-2); }
+
+.ct-tick {
+  position: absolute;
+  inset-inline-end: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--brand);
+}
+
+.ct-none {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--gold-300);
+  border-radius: var(--r-md);
+  background: var(--gold-100);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--gold-700);
+}
+
+/* The running summary under the dialog — what the family is about to be
+   told, in the words they will be told it in. */
+.ct-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ct-summary[data-ready] { color: var(--teal-600); font-weight: 600; }
+
+/* One day of the week, with its clock beside it — the lecture times and
+   the section from–to in the schedule dialog. See ScheduleDialog.tsx. */
+.ct-rows { display: flex; flex-direction: column; gap: 6px; }
+.ct-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.ct-row > span:first-child { flex: 0 0 84px; color: var(--muted); }
+.ct-row .inp { max-width: 118px; }
+.ct-same {
+  border: 0; background: none; padding: 0 4px; font: inherit; font-size: 12px;
+  color: var(--brand); cursor: pointer; text-decoration: underline;
+}

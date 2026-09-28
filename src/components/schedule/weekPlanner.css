@@ -1,0 +1,102 @@
+/* WeekPlanner.tsx — a week being filled in, in the app's own tokens.
+
+   The layout is deliberately not a calendar grid: a family is picking a
+   rhythm ("Sundays and Tuesdays"), not a date, and a seven-column month
+   view invites them to read it as one. Days stack; times sit inside a day. */
+
+.wp { display: flex; flex-direction: column; gap: 18px; }
+
+.wp-step { display: flex; flex-direction: column; gap: 8px; }
+
+.wp-step-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+
+.wp-days { display: flex; flex-direction: column; gap: 6px; }
+
+.wp-day {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.wp-day[data-gap] { border-color: var(--gold-300); background: var(--gold-100); }
+
+.wp-day-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.wp-day-gap {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--gold-700);
+}
+
+.wp-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.wp-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--ink);
+  transition: border-color .12s, background .12s;
+}
+.wp-slot:hover { border-color: var(--line-hard); }
+.wp-slot:focus-visible { outline: none; box-shadow: var(--ring); }
+.wp-slot[data-on] {
+  border-color: var(--brand);
+  background: var(--brand-weak);
+}
+
+.wp-slot-time { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wp-slot-sub { font-size: 11px; color: var(--muted-2); }
+
+.wp-tick {
+  position: absolute;
+  inset-inline-end: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--brand);
+}
+
+.wp-none {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* The running "what is still missing" line. Reads as information while the
+   form is open, not as an error — nothing has been submitted yet. */
+.wp-missing {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.wp-missing[data-done] { color: var(--teal-600); font-weight: 600; }
+
+@media (max-width: 560px) {
+  .wp-day { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}

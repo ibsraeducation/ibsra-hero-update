@@ -1,0 +1,101 @@
+/* ==========================================================================
+   The live parent pages: my students, buying a program, and the transfers
+   filed for it. One detail card per thing, nothing else — the same look as
+   the reporting summary. Kept here rather than in index.css so the three
+   pages own their own styles.
+   ========================================================================== */
+
+.fam-stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* the row of numbers a family actually asks about */
+.fam-line { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+
+/* where the money goes — the two accounts, side by side */
+.fam-accounts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.fam-account {
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px;
+  background: var(--surface-2, transparent);
+}
+.fam-account b { font-size: 15px; letter-spacing: .2px; word-break: break-all; }
+
+/* the program cards a parent picks from */
+.fam-offers { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.fam-offer {
+  display: flex; flex-direction: column; gap: 8px; text-align: start;
+  border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px;
+  background: transparent; cursor: pointer;
+  transition: border-color var(--fast), box-shadow var(--fast), transform var(--fast);
+}
+.fam-offer:hover { border-color: var(--line-hard); transform: translateY(-2px); box-shadow: var(--sh-1); }
+.fam-offer[data-on="true"] { border-color: var(--brand); box-shadow: var(--ring); }
+.fam-offer[disabled] { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+.fam-price { font-size: 19px; font-weight: 600; }
+
+/* one filed transfer */
+.fam-pay { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; }
+.fam-pay + .fam-pay { border-top: 1px solid var(--line-soft); }
+
+@media (max-width: 720px) {
+  .fam-line { gap: 4px 12px; }
+}
+
+/* ---------------- the two tabs on Payments ----------------
+   Paying and what was already sent are one page now. Same underline the
+   performance pages use, so a tab strip reads the same wherever a family
+   meets one. */
+.fam-tabs {
+  display: flex; align-items: flex-end; gap: 4px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none;
+}
+.fam-tabs::-webkit-scrollbar { display: none; }
+.fam-tab {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 12px 10px; border: 0; background: transparent; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap;
+  transition: color var(--fast);
+}
+.fam-tab svg { width: 15px; height: 15px; }
+.fam-tab:hover { color: var(--ink); }
+.fam-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--r-sm); }
+.fam-tab[data-on="true"] { color: var(--brand); font-weight: 600; }
+.fam-tab[data-on="true"]::after {
+  content: ""; position: absolute; inset-inline: 8px; bottom: -1px; height: 2px;
+  background: var(--brand); border-radius: 2px 2px 0 0;
+}
+
+/* ---------- the rejected-payment dialog ---------- */
+.pay-reason {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 14px 16px; border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--rose-600) 7%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--rose-600) 28%, var(--line));
+}
+
+.pay-drop {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  height: 50px; padding: 0 16px; border-radius: var(--r-md);
+  border: 1.5px dashed var(--line); color: var(--muted); font-size: 13.5px;
+  transition: border-color var(--fast), color var(--fast), background var(--fast);
+}
+.pay-drop svg { width: 17px; height: 17px; flex: none; }
+.pay-drop:hover { border-color: var(--brand); color: var(--brand); }
+.pay-drop[data-has] {
+  border-style: solid; border-color: var(--teal-500); color: var(--teal-600);
+  background: color-mix(in srgb, var(--teal-500) 6%, var(--surface));
+}
+
+/* A rejected row is the one that opens something. */
+.tbl tbody tr[data-click] { cursor: pointer; }
+.tbl tbody tr[data-click]:hover { background: color-mix(in srgb, var(--rose-600) 5%, var(--surface-2)); }
+
+
+/* The rejected-payment window carries the enrolment dialog's own transfer
+   step, down to the class names, so a family paying a second time is not
+   shown a second design. It sizes to whichever tab is open rather than
+   holding one frame: the reason is a sentence, and a sentence marooned in
+   the middle of a 700px window is worse than a window that resizes. */
+.modal.pay-fix { width: min(520px, calc(100vw - 32px)); }
+.pay-fix .modal-body { padding: 8px 24px 0; }
+.pay-fix .modal-foot { margin-top: 0; padding: 14px 24px 18px; }
+.pay-fix .ef-center { max-width: 380px; gap: 22px; padding-bottom: 6px; }

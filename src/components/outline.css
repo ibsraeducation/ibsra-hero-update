@@ -1,0 +1,25 @@
+/* Nested bullets for a Markdown outline: a filled dot, then a ring, then a dash. */
+
+.mdo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mdo .mdo { margin-top: 6px; }
+.mdo > li { position: relative; padding-inline-start: 16px; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.mdo > li::before {
+  content: ""; position: absolute; inset-inline-start: 3px; top: .6em;
+  width: 5px; height: 5px; border-radius: 99px; background: var(--teal-500);
+}
+.mdo[data-depth="1"] > li::before { background: transparent; border: 1.5px solid var(--muted); width: 5px; height: 5px; box-sizing: border-box; }
+.mdo[data-depth="1"] > li { color: var(--ink-2); }
+.mdo[data-depth="2"] > li::before { width: 6px; height: 1.5px; border-radius: 1px; top: .72em; background: var(--muted-2); }
+.mdo[data-depth="2"] > li { color: var(--muted); }
+
+.mdo > li.mdo-head { padding-inline-start: 0; }
+.mdo > li.mdo-head::before { content: none; }
+.mdo > li.mdo-head > .mdo-text { font-weight: 650; color: var(--ink); }
+.mdo > li.mdo-head + li.mdo-head { margin-top: 6px; }
+
+.mdo-text strong { font-weight: 650; color: var(--ink); }
+.mdo-text code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em;
+  padding: 0 4px; border-radius: 4px; background: var(--surface-3);
+}
+.mdo-text a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }

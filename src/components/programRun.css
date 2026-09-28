@@ -1,0 +1,14 @@
+/* The program-length box, drawn big on the enrolment form and small in the
+   admin's schedule dialog. See ProgramRun.tsx. */
+.plen {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 24px 16px; border-radius: var(--r-lg); background: var(--surface-2);
+}
+.plen b { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -.025em; color: var(--ink); }
+.plen-eyebrow,
+.plen-note { font-size: 12.5px; color: var(--muted); }
+
+.plen[data-size="sm"] { padding: 12px 14px; gap: 2px; }
+.plen[data-size="sm"] b { font-size: 22px; }
+.plen[data-size="sm"] .plen-eyebrow,
+.plen[data-size="sm"] .plen-note { font-size: 11.5px; }

@@ -1,0 +1,134 @@
+/* ==========================================================================
+   The two money cards on the admin payments page, and the renew card the
+   family sees. Kept here so the shared sheet never has to know about them.
+   ========================================================================== */
+
+/* ---------------- where the money goes ---------------- */
+
+.bill-methods {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.bill-method {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+/* A closed channel keeps everything it had — it just stops being offered. */
+.bill-method[data-on='false'] { opacity: 0.6; }
+.bill-method[data-on='true'] {
+  border-color: color-mix(in oklab, var(--brand) 35%, var(--line));
+}
+
+.bill-qr {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bill-qr-frame {
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.bill-qr-frame[data-empty='true'] {
+  background: transparent;
+  border-style: dashed;
+  color: var(--muted-2);
+}
+
+.bill-qr-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ---------------- the three packages ---------------- */
+
+.bill-plans {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.bill-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  opacity: 0.62;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.bill-plan[data-on='true'] {
+  opacity: 1;
+  border-color: color-mix(in oklab, var(--brand) 45%, var(--line));
+}
+
+.bill-day {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* ---------------- the family's side ---------------- */
+
+.bill-pay {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.bill-pay-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.bill-pay-card b {
+  word-break: break-all;
+}
+
+/* The renewal line: one row, coloured by how little time is left. */
+.bill-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.bill-state[data-urgency='soon'] {
+  border-color: color-mix(in oklab, var(--gold-600) 40%, var(--line));
+  background: color-mix(in oklab, var(--gold-600) 7%, transparent);
+}
+
+.bill-state[data-urgency='urgent'],
+.bill-state[data-urgency='closed'] {
+  border-color: color-mix(in oklab, var(--rose-600) 45%, var(--line));
+  background: color-mix(in oklab, var(--rose-600) 8%, transparent);
+}

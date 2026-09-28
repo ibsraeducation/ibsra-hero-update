@@ -1,0 +1,389 @@
+/* ==========================================================================
+   The enrolment dialog — simple on purpose.
+
+   One idea per step, one centred column, plenty of room around it. The
+   dialog is sized to the window and only a tab's text scrolls. Few borders,
+   one accent colour, one number that matters per screen.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ shell */
+/* The dialog is as tall as the step it holds, never taller than the window.
+   A step longer than that scrolls inside .ef-center. */
+.modal.ef-modal {
+  width: min(860px, calc(100vw - 32px));
+  height: auto;
+  max-height: min(820px, calc(100dvh - 32px));
+}
+.modal.ef-modal.ef-modal-sm { width: min(480px, calc(100vw - 32px)); height: auto; }
+.ef-modal .modal-head { padding: 22px 28px 6px; }
+.ef-modal .modal-head h2 { font-size: 19px; letter-spacing: -.015em; }
+.ef-modal .modal-head p { font-size: 13px; }
+.ef-modal .modal-body { padding: 10px 28px 0; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.ef-modal.ef-modal-sm .modal-body { overflow: auto; }
+.ef-modal .modal-foot { margin-top: 0; padding: 16px 28px 20px; border-top: 0; }
+
+.ef { display: flex; flex-direction: column; gap: 20px; flex: 1; min-height: 0; }
+
+/* A hairline of progress under the header — no numbers, no labels. */
+.ef-progress { height: 3px; border-radius: 3px; background: var(--line-soft); flex: none; overflow: hidden; }
+.ef-progress i { display: block; height: 100%; background: var(--brand); border-radius: 3px; transition: width .3s ease; }
+
+.ef-hint { font-size: 13px; color: var(--muted); }
+.ef-q { font-size: 14px; font-weight: 600; color: var(--ink); }
+
+/* --------------------------------------------------- About · Values */
+.ef-read { display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; }
+
+.ef-video {
+  flex: none; align-self: center;
+  /* 16:9, no taller than ~45% of the dialog, so the text below always fits. */
+  width: min(100%, calc((100dvh - 32px) * .45 * 16 / 9));
+  border-radius: var(--r-lg); overflow: hidden; background: #000;
+}
+.ef-video > * { display: block; width: 100%; }
+.ef-video > .stack { gap: 0; }
+.ef-video .video-frame { border: 0; border-radius: 0; }
+
+.ef-panel { flex: 1; min-height: 120px; display: flex; flex-direction: column; animation: ef-fade .22s ease both; }
+/* The admin names these tabs, so the bar has to cope with a dozen of them
+   and with a name that is a whole sentence: one line that scrolls sideways
+   with faded edges (see TabScroller), each label capped and ellipsised. */
+.ef-tabs { flex: none; border-bottom: 1px solid var(--line-soft); }
+.ef-tabs .ptabs { border-bottom: 0; margin-inline: -4px; }
+.ef-tabs .tab { max-width: 210px; }
+.ef-tabs .tab[data-on="true"]::after { bottom: 0; }
+.ef-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 2px 8px; font-size: 14px; line-height: 1.65; }
+
+/* ---------------------------------------------- one centred column */
+.ef-center {
+  flex: 1; min-height: 0; overflow: auto;
+  width: 100%; max-width: 440px; margin-inline: auto;
+  display: flex; flex-direction: column; gap: 28px;
+  /* Short steps sit in the middle of the dialog, not stuck to the top. */
+  justify-content: safe center;
+  padding: 8px 2px 12px;
+  animation: ef-fade .22s ease both;
+}
+
+/* The one step that asks two things at once — a row a day, and the length
+   the week adds up to beside them — needs more than the single column. */
+.ef-center.ef-wide { max-width: 760px; justify-content: flex-start; gap: 14px; padding-top: 0; }
+
+.ef-row { display: flex; flex-direction: column; gap: 6px; }
+.ef-row .ef-seg { margin-top: 6px; }
+
+/* Segmented choice. */
+.ef-seg { display: flex; gap: 8px; }
+.ef-seg button {
+  flex: 1; height: 42px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface);
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer;
+  transition: border-color var(--fast), background var(--fast), color var(--fast);
+}
+.ef-seg button:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ef-seg button[data-on="true"] { border-color: var(--brand); background: var(--brand); color: #fff; }
+
+/* The one number. */
+.ef-result {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 24px 16px; border-radius: var(--r-lg); background: var(--surface-2);
+}
+.ef-result b { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -.025em; color: var(--ink); }
+
+/* --------------------------------------------------------- toggle */
+.ef-toggle {
+  display: flex; padding: 4px; gap: 4px; border-radius: 999px; background: var(--surface-3);
+  align-self: center; width: 100%; max-width: 320px;
+}
+.ef-toggle button {
+  flex: 1; height: 36px; border: 0; border-radius: 999px; background: transparent;
+  font: inherit; font-size: 13.5px; font-weight: 500; color: var(--muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background var(--fast), color var(--fast), box-shadow var(--fast);
+}
+.ef-toggle button[data-on="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--sh-1); }
+.ef-toggle em {
+  font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 99px;
+  background: color-mix(in srgb, var(--teal-500) 16%, transparent); color: var(--teal-600);
+}
+
+/* ------------------------------------------------------------ card */
+.ef-card {
+  display: flex; flex-direction: column; gap: 22px;
+  padding: 26px 24px; border-radius: var(--r-xl);
+  border: 1px solid var(--line); background: var(--surface);
+}
+
+.ef-price { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.ef-price b { font-size: 38px; line-height: 1.1; font-weight: 700; letter-spacing: -.03em; }
+.ef-save { font-size: 12.5px; font-weight: 600; color: var(--teal-600); }
+
+.ef-ways { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ef-ways button {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 14px 10px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface);
+  font: inherit; color: var(--ink); cursor: pointer;
+  transition: border-color var(--fast), background var(--fast);
+}
+.ef-ways b { font-size: 14px; font-weight: 600; }
+.ef-ways span { font-size: 12px; color: var(--muted); }
+.ef-ways button:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ef-ways button[data-on="true"] { border-color: var(--brand); background: var(--brand-weak); box-shadow: 0 0 0 1px var(--brand) inset; }
+
+/* One channel at a time. */
+.ef-channel { display: flex; flex-direction: column; align-items: center; gap: 14px; animation: ef-fade .2s ease both; }
+/* Big enough to scan from a phone held over the screen, not so big it
+   pushes the upload and the amount out of sight. */
+.ef-qr {
+  width: min(100%, 240px);
+  aspect-ratio: 1;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--r-md);
+  background: #fff;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+}
+.ef-channel .btn { width: 100%; justify-content: center; }
+
+.ef-drop {
+  display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
+  height: 52px; padding: 0 16px; border-radius: var(--r-md);
+  border: 1.5px dashed var(--line); color: var(--muted); font-size: 14px;
+  transition: border-color var(--fast), color var(--fast), background var(--fast);
+}
+.ef-drop svg { width: 18px; height: 18px; flex: none; }
+.ef-drop:hover { border-color: var(--brand); color: var(--brand); }
+.ef-drop[data-has] { border-style: solid; border-color: var(--teal-500); color: var(--teal-600); background: color-mix(in srgb, var(--teal-500) 6%, var(--surface)); }
+
+.ef-amount { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: -14px; }
+.ef-amount .inp { width: 110px; text-align: center; }
+
+/* --------------------------------------------------------------- done */
+.ef-done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 28px 8px 12px; }
+.ef-check {
+  width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--teal-500) 14%, transparent); color: var(--teal-600);
+  animation: ef-pop .42s cubic-bezier(.2, 1.3, .4, 1) both;
+}
+.ef-check svg polyline { stroke-dasharray: 32; stroke-dashoffset: 32; animation: ef-draw .4s .18s ease forwards; }
+.ef-done-title { font-size: 18px; font-weight: 600; }
+.ef-done-body { font-size: 14px; line-height: 1.6; color: var(--muted); max-width: 360px; }
+
+@keyframes ef-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes ef-pop { from { transform: scale(.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes ef-draw { to { stroke-dashoffset: 0; } }
+
+/* -------------------------------------------------------------- small */
+@media (max-width: 640px) {
+  .modal.ef-modal { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .ef-modal .modal-head, .ef-modal .modal-body, .ef-modal .modal-foot { padding-inline: 18px; }
+  .ef-video { width: 100%; }
+  .ef-card { padding: 22px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ef-panel, .ef-center, .ef-channel, .ef-check { animation: none; }
+  .ef-check svg polyline { stroke-dashoffset: 0; animation: none; }
+  .ef-progress i { transition: none; }
+}
+
+/* ---- Who is it for ----
+   The heroes on the account, one of them picked, and the way to add
+   another without leaving the enrolment. */
+.ef-kids { display: flex; flex-direction: column; gap: 8px; }
+.ef-kid {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 12px 14px; text-align: left;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.ef-kid:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ef-kid[data-on="true"] { border-color: var(--brand); background: var(--brand-weak); box-shadow: 0 0 0 1px var(--brand) inset; }
+.ef-kid .stack { min-width: 0; gap: 2px; }
+.ef-kid b { font-size: 14px; font-weight: 600; }
+.ef-kid span { font-size: 12px; color: var(--muted); }
+.ef-kid svg { width: 17px; height: 17px; flex: none; color: var(--brand); }
+.ef-kid-add { border-style: dashed; justify-content: center; color: var(--muted); font-size: 13px; font-weight: 600; }
+.ef-kid-add:hover { color: var(--brand); }
+.ef-kid-add svg { color: currentColor; }
+.ef-new { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+.ef-new .row { align-items: flex-start; }
+.ef-new .row > .field { flex: 1 1 130px; min-width: 0; }
+
+/* --------------------------------------------- the week the family picks
+   The lecture hours the admin has opened, one per row so the day and the
+   clock read as one line; the seven-day fallback when they have opened
+   none; and the from–to on each of the days a section falls on. */
+.ef-slots { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.ef-slot {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line);
+  background: var(--surface); font: inherit; color: var(--ink); cursor: pointer;
+  transition: border-color var(--fast), background var(--fast);
+}
+.ef-slot:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ef-slot[data-on="true"] { border-color: var(--brand); background: var(--brand-weak); }
+.ef-slot b { font-size: 14px; font-weight: 600; }
+.ef-slot span span { font-size: 12.5px; color: var(--muted); }
+.ef-slot svg { width: 18px; height: 18px; color: var(--brand); flex: none; }
+
+.ef-secs { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ef-sec { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.ef-sec .ef-day { flex: 0 0 74px; color: var(--muted); }
+/* A day they unticked: still listed, because it is still on offer and one
+   click brings it back. */
+.ef-sec[data-off] .ef-day { text-decoration: line-through; opacity: .6; }
+.ef-sec .inp { max-width: 118px; }
+.ef-same {
+  border: 0; background: none; padding: 0 4px; font: inherit; font-size: 12px;
+  color: var(--brand); cursor: pointer; text-decoration: underline;
+}
+
+.ef-warn { font-size: 12.5px; color: var(--rose-600); text-align: center; }
+
+/* A section hour is picked, not typed, so the row holds a select. */
+.ef-sec .sel { max-width: 220px; }
+
+/* Nothing published for this course — the step has no question to ask, so
+   it says why instead of offering an hour nobody teaches at. */
+.ef-blocked {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px 16px; border-radius: var(--r-lg);
+  border: 1px solid color-mix(in srgb, var(--gold-600) 35%, transparent);
+  background: var(--gold-100); color: var(--gold-700);
+  font-size: 13px; line-height: 1.6;
+}
+.ef-blocked svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.ef-blocked b { font-size: 14px; }
+
+/* The real dates behind a weekly hour. */
+.ef-dates { font-size: 11.5px; color: var(--muted-2); }
+
+.ef-dur {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 13px; color: var(--muted);
+}
+.ef-dur .inp { max-width: 96px; }
+
+.ef-vol {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 10px; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface);
+}
+.ef-vol-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ef-vol-head span { font-size: 13px; color: var(--muted); }
+.ef-vol-head b {
+  font-size: 15px; font-weight: 600; color: var(--brand);
+  padding: 3px 10px; border-radius: 999px; background: var(--brand-weak);
+}
+.ef-vol-range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; margin: 8px 0 2px; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(to right, var(--brand) var(--fill, 0%), var(--line) var(--fill, 0%));
+  accent-color: var(--brand);
+}
+.ef-vol-range:disabled { cursor: default; opacity: .6; }
+.ef-vol-range:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; }
+.ef-vol-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--brand);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+.ef-vol-range::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--brand);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+.ef-vol-ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted-2); }
+.ef-vol-mini { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ef-vol-mini .ef-vol-range { margin: 0; }
+.ef-vol-mini b {
+  flex: none; min-width: 52px; text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--brand);
+  padding: 3px 8px; border-radius: 999px; background: var(--brand-weak);
+}
+
+/* Wrapping, not a breakpoint: the dialog can be narrow while the window is
+   wide, and a media query only ever hears about the window. */
+.ef-split { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 10px; }
+.ef-split-main { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ef-split-side { flex: 1 1 200px; max-width: 230px; display: flex; flex-direction: column; gap: 10px; }
+.ef-split-side .ef-help { margin-top: 0; }
+
+.ef-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.ef-split .ef-grid { margin-top: 0; }
+.ef-grid-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px;
+  padding: 10px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface);
+}
+.ef-grid-row > * { min-width: 0; }
+.ef-grid-day { flex: 0 0 84px; }
+.ef-grid-row .ef-vol-mini { flex: 1 1 130px; }
+.ef-grid-row .ef-chips { flex: 1 1 180px; }
+.ef-grid-day { font-size: 13.5px; font-weight: 600; }
+
+.ef-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ef-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface);
+  font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums;
+  white-space: nowrap; color: var(--ink); cursor: pointer;
+  transition: border-color var(--fast), background var(--fast);
+}
+.ef-chip:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ef-chip[data-on="true"] { border-color: var(--brand); background: var(--brand-weak); color: var(--brand); }
+.ef-chip svg { width: 14px; height: 14px; }
+
+.ef-vol-one { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.ef-vol-one > span { font-size: 13px; color: var(--muted); }
+.ef-vol-one > b {
+  font-size: 15px; font-weight: 600; color: var(--brand);
+  padding: 3px 10px; border-radius: 999px; background: var(--brand-weak);
+}
+
+.ef-help {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding: 10px 12px;
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+  font-size: 13px; color: var(--muted);
+}
+.ef-help .btn svg { width: 15px; height: 15px; }
+
+.ef-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 8px; margin-top: 8px; }
+.ef-day-btn {
+  position: relative; display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface);
+  font: inherit; color: var(--ink); cursor: pointer; text-align: start;
+  transition: border-color var(--fast), background var(--fast);
+}
+.ef-day-btn b { font-size: 14px; font-weight: 600; }
+.ef-day-btn span { font-size: 12px; color: var(--muted); }
+.ef-day-btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ef-day-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ef-day-btn[data-on] { border-color: var(--brand); background: var(--brand-weak); box-shadow: 0 0 0 1px var(--brand) inset; }
+.ef-day-btn[data-on] b { color: var(--brand); }
+.ef-day-btn > svg { position: absolute; top: 10px; inset-inline-end: 10px; width: 15px; height: 15px; color: var(--brand); }
+
+.ef-picks { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
+.ef-pick { display: flex; flex-direction: column; gap: 6px; }
+.ef-pick-day {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted-2);
+}
+.ef-pick .ef-slots { margin-top: 0; }
+
+.ef-chosen {
+  display: flex; flex-direction: column; gap: 4px; margin-top: 8px;
+  padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2);
+}
+.ef-chosen-t { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-2); }
+.ef-chosen-row { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.ef-chosen-row b { min-width: 86px; font-weight: 600; }
+.ef-chosen-row span { color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -1,0 +1,29 @@
+/* A program's tab bar: one line of flush tabs that scrolls sideways, with a
+   hidden scrollbar and faded edges where more tabs sit out of view. */
+
+.ptabs { border-bottom: 1px solid var(--line); }
+.ptabs-scroll {
+  position: relative; display: flex; align-items: center;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.ptabs-scroll::-webkit-scrollbar { display: none; }
+.ptabs-scroll[data-end="true"] { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.ptabs-scroll[data-start="true"] { mask-image: linear-gradient(to right, transparent, #000 40px); }
+.ptabs-scroll[data-start="true"][data-end="true"] {
+  mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+}
+
+.ptabs .tabs { flex: none; flex-wrap: nowrap; padding-inline: 0; background: transparent; border-bottom: 0; }
+.ptabs .tab { flex: none; white-space: nowrap; }
+/* The scroller clips anything below it, so the chosen tab's line sits inside. */
+.ptabs .tab::after { bottom: 0; }
+.ptabs .tabs:first-child .tab:first-child { padding-inline-start: 2px; }
+.ptabs .tabs:first-child .tab:first-child::after { inset-inline-start: 0; }
+
+.ptabs-sep { flex: none; width: 1px; height: 16px; margin-inline: 8px; background: var(--line-hard); }
+
+.ptab-swatch { width: 8px; height: 8px; flex: none; border-radius: 2px; }
+.ptab-swatch.sky  { background: var(--sky-500); }
+.ptab-swatch.gold { background: var(--gold-500); }
+.ptab-swatch.teal { background: var(--teal-500); }

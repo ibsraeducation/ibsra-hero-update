@@ -1,0 +1,77 @@
+/* ==========================================================================
+   The family wallets card on the admin payments page: one row per family,
+   what is on their balance, and the button that adds to it.
+   ========================================================================== */
+
+.wal-admin-list { display: flex; flex-direction: column; }
+
+.wal-admin-row {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 0;
+}
+.wal-admin-row + .wal-admin-row { border-top: 1px solid var(--line-soft); }
+
+.wal-admin-figure { text-align: end; flex: none; }
+.wal-admin-figure b { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* What the balance is now, and what it becomes — read before confirming. */
+.wal-add-now {
+  padding: 9px 12px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+
+@media (max-width: 620px) {
+  .wal-admin-row { align-items: flex-start; }
+  .wal-admin-figure { text-align: start; }
+}
+
+/* ---------------- answering a request ---------------- */
+
+/* One course of what was asked for, ticked or not: the sequence decision. */
+.req-course {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  transition: border-color var(--fast), background var(--fast);
+}
+.req-course[data-on] {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  background: var(--brand-weak);
+}
+.req-course input { width: 16px; height: 16px; flex: none; accent-color: var(--brand); }
+
+/* ---------------- the payments page tabs ---------------- */
+
+/* The tab bar sits on the page, not inside a card. */
+.pay-tabs .tabs { padding-inline: 0; background: transparent; }
+
+/* The filter row across the top of a tab's card. */
+.pay-filters { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); align-items: center; }
+
+.pay-tbl td { vertical-align: top; }
+.pay-tbl .cd-pill { cursor: default; }
+.nowrap { white-space: nowrap; }
+
+/* The parents / students slicer: one switch with two sides. */
+.seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  border: 1px solid var(--line); border-radius: 99px; background: var(--surface-2);
+}
+.seg-opt {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding-inline: 12px; border: 0; border-radius: 99px;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background var(--fast), color var(--fast), box-shadow var(--fast);
+}
+.seg-opt svg { width: 14px; height: 14px; flex: none; }
+.seg-opt:hover { color: var(--ink); }
+.seg-opt[data-on="true"] {
+  background: var(--surface); color: var(--ink); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--line);
+}
+.seg-opt:focus-visible { outline: none; box-shadow: var(--ring); }
+.seg-cnt {
+  font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 99px;
+  background: var(--surface-3); color: var(--muted);
+}
+.seg-opt[data-on="true"] .seg-cnt { background: var(--brand-weak); color: var(--brand); }

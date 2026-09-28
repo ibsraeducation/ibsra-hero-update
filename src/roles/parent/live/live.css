@@ -1,0 +1,112 @@
+/* ==========================================================================
+   The three pages a family opens most: the wallet, the material and the
+   feedback. Everything here is layout for those — the look (cards, meters,
+   pills, folder cards) is the app's and is not repeated.
+   ========================================================================== */
+
+/* ---------------- the wallet ---------------- */
+
+.wal-top {
+  display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+  justify-content: space-between; padding: 20px 22px;
+}
+.wal-balance { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wal-figure {
+  font-size: 34px; font-weight: 650; letter-spacing: -.5px; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.wal-side { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.wal-pending {
+  display: flex; flex-direction: column; gap: 3px; text-align: end;
+  border-inline-start: 2px solid var(--gold-600, var(--line-hard)); padding-inline-start: 12px;
+  max-width: 320px;
+}
+
+.wal-log { display: flex; flex-direction: column; }
+.wal-row { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
+.wal-row + .wal-row { border-top: 1px solid var(--line-soft); }
+.wal-ico {
+  display: grid; place-items: center; flex: none;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.wal-ico svg { width: 15px; height: 15px; }
+.wal-row[data-move="topup"] .wal-ico,
+.wal-row[data-move="refund"] .wal-ico { color: var(--teal-600); border-color: var(--teal-600); }
+.wal-row[data-move="pending"] .wal-ico { color: var(--gold-600); border-color: var(--gold-600); }
+
+/* ---------------- the feedback bars ---------------- */
+
+.fb-tiles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.fb-tile {
+  display: flex; flex-direction: column; gap: 3px;
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px;
+}
+.fb-tile b { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+.fb-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.fb-key { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-2); }
+.fb-key i { width: 9px; height: 9px; border-radius: 2px; display: block; }
+
+.fb-chart {
+  display: flex; align-items: flex-end; gap: 10px;
+  height: 186px; overflow-x: auto; padding-bottom: 2px;
+}
+.fb-col { display: flex; flex-direction: column; gap: 6px; height: 100%; min-width: 34px; flex: 1 1 34px; }
+/* The bars themselves take the height; the label sits under them. */
+.fb-bars { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
+.fb-bar {
+  flex: 1; border-radius: 3px 3px 1px 1px; min-height: 2px;
+  transition: height var(--med);
+}
+.fb-x { font-size: 11px; color: var(--muted-2); text-align: center; font-variant-numeric: tabular-nums; }
+.fb-x[data-missed] { color: var(--rose-600); font-weight: 600; }
+
+/* ---------------- the project sequence ---------------- */
+
+.fb-seq { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fb-step {
+  display: flex; align-items: flex-start; gap: 12px; padding: 11px 2px;
+  position: relative;
+}
+.fb-step + .fb-step { border-top: 1px solid var(--line-soft); }
+.fb-step-mark {
+  display: grid; place-items: center; flex: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--line); color: var(--muted-2); background: var(--surface);
+}
+.fb-step-mark svg { width: 14px; height: 14px; }
+.fb-step[data-state="done"] .fb-step-mark { color: var(--teal-600); border-color: var(--teal-600); }
+.fb-step[data-state="building"] .fb-step-mark { color: var(--brand); border-color: var(--brand); }
+.fb-step[data-state="soon"] { opacity: .72; }
+
+/* ---------------- the mentor's note ---------------- */
+
+.fb-note {
+  display: flex; flex-direction: column; gap: 10px;
+  border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px;
+}
+.fb-note[data-latest] { border-color: var(--line-hard); box-shadow: var(--sh-1); }
+.fb-focus {
+  display: flex; gap: 6px; align-items: flex-start;
+  border-inline-start: 2px solid var(--brand); padding-inline-start: 10px; color: var(--muted);
+}
+.fb-voice { display: flex; flex-direction: column; gap: 6px; }
+
+@media (max-width: 720px) {
+  .wal-side { align-items: flex-start; }
+  .wal-pending { text-align: start; }
+  .wal-figure { font-size: 28px; }
+  .fb-chart { height: 150px; }
+}
+
+/* ---------------- the courses under a program card ---------------- */
+
+.mkt-courses {
+  display: flex; flex-direction: column;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft);
+}
+.mkt-course {
+  display: flex; align-items: center; gap: 10px; padding: 7px 0;
+}
+.mkt-course + .mkt-course { border-top: 1px solid var(--line-soft); }

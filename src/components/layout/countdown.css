@@ -1,0 +1,95 @@
+/* ==========================================================================
+   The renewal clock in the top bar, and the closed door a student meets.
+   ========================================================================== */
+
+.cd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 27px;
+  padding-inline: 9px;
+  border: 1px solid var(--line-hard);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.cd-pill:hover { border-color: var(--ink-2); }
+
+.cd-pill svg { width: 14px; height: 14px; flex: none; }
+
+.cd-who { font-weight: 500; color: var(--muted); }
+
+.cd-pill[data-urgency='soon'] {
+  border-color: color-mix(in srgb, var(--gold-600) 45%, var(--line-hard));
+  background: var(--gold-100);
+  color: var(--gold-700);
+}
+.cd-pill[data-urgency='soon'] .cd-who { color: inherit; opacity: 0.8; }
+
+.cd-pill[data-urgency='urgent'],
+.cd-pill[data-urgency='closed'] {
+  border-color: color-mix(in srgb, var(--rose-600) 50%, var(--line-hard));
+  background: var(--rose-100);
+  color: var(--rose-600);
+}
+.cd-pill[data-urgency='urgent'] .cd-who,
+.cd-pill[data-urgency='closed'] .cd-who { color: inherit; opacity: 0.8; }
+
+/* The pulse is only for the last stretch, and only when it is wanted. */
+@media (prefers-reduced-motion: no-preference) {
+  .cd-pill[data-urgency='urgent'] svg { animation: cd-tick 2s ease-in-out infinite; }
+}
+
+@keyframes cd-tick {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ---------------- the closed door ---------------- */
+
+.cd-shut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 520px;
+  margin: 8vh auto 0;
+  padding: 32px 28px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+}
+
+.cd-shut-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 99px;
+  background: var(--rose-100);
+  color: var(--rose-600);
+}
+
+.cd-shut-mark svg { width: 24px; height: 24px; }
+
+.cd-shut p { line-height: 1.7; }
+
+/* ---------------- the admin inbox badge ---------------- */
+
+.tb-count {
+  position: absolute; top: 1px; inset-inline-end: 0;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--rose-600); color: #fff;
+  font-size: 10px; font-weight: 650; line-height: 16px; text-align: center;
+  pointer-events: none;
+}
+/* The same count, sitting in a menu line instead of on the icon. */
+.tb-count-inline { position: static; display: inline-block; }

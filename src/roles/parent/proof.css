@@ -1,0 +1,121 @@
+/* ==========================================================================
+   Parent · "See the proof" — the pop-up charts, and the clickable cards.
+   Chart colours are --pc-* so the palette lives in one place:
+     --pc-1/2/3  the three habits (validated categorical trio, light + dark)
+     --pc-main   single-series marks (brand)
+     --pc-off    missed / not handed in / late — a plain grey, never an alarm
+     --pc-soft   not yet / will build
+   ========================================================================== */
+
+:root {
+  --pc-1: #109384;
+  --pc-2: #C07A0B;
+  --pc-3: #6650E6;
+  --pc-main: var(--brand-500);
+  --pc-off: #948B7E;
+  --pc-soft: #D6D0C5;
+}
+:root[data-theme="dark"] {
+  /* validated separately against the dark surface — not a flip of the light trio */
+  --pc-1: #2BA898;
+  --pc-2: #C4861C;
+  --pc-3: #7E6CEE;
+  --pc-main: var(--brand-400);
+  --pc-off: #8A8277;
+  --pc-soft: #454037;
+}
+
+/* ---------- clickable cards ---------- */
+.proofable { display: contents; }
+.proofable > .card { cursor: pointer; transition: border-color var(--fast), box-shadow var(--fast); }
+.proofable > .card:hover { border-color: var(--brand); box-shadow: var(--sh-2); }
+.proof-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; height: 22px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: 99px; background: var(--surface);
+  font: inherit; font-size: 11px; font-weight: 600; color: var(--brand); cursor: pointer;
+}
+.proof-chip:hover { border-color: var(--brand); background: var(--brand-weak); }
+.proof-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.proof-chip svg { width: 12px; height: 12px; }
+
+/* overview: figure tiles and page cards open proof too */
+.pf-fig[role="button"] { cursor: pointer; transition: background var(--fast); }
+.pf-fig[role="button"]:hover { background: var(--surface-2); }
+.pf-fig[role="button"]:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+button.pf-door { width: 100%; text-align: start; font: inherit; color: inherit; cursor: pointer; }
+
+/* ---------- the pop-up ---------- */
+.proof { display: flex; flex-direction: column; gap: 22px; }
+.proof-sec { display: flex; flex-direction: column; gap: 14px; }
+.proof-sec + .proof-sec { padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.proof-sec-h { margin: 0; font-size: 15px; font-weight: 650; color: var(--ink); }
+.proof-head { display: flex; align-items: center; gap: 14px; }
+.proof-num { font-size: 34px; font-weight: 650; letter-spacing: -.03em; line-height: 1; color: var(--ink); }
+.proof-part { display: flex; flex-direction: column; gap: 8px; }
+.proof-part-h { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.proof-empty { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+.proof-how { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line-soft); }
+.proof-how ul { margin: 0; padding-inline-start: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }
+
+/* ---------- charts ---------- */
+.proof-fig { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.proof-scroll { overflow-x: auto; }
+.proof-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.proof-grid { stroke: var(--line); stroke-width: 1; }
+.proof-tick { font-size: 10.5px; fill: var(--muted-2); }
+.proof-val { font-size: 11px; font-weight: 600; fill: var(--ink-2); }
+.proof-ref { stroke: var(--ink-2); stroke-width: 1.5; }
+.proof-ref-text { font-size: 11px; font-weight: 600; fill: var(--ink); }
+.proof-hit { cursor: default; outline: none; }
+.proof-hit:focus-visible path { stroke: var(--ink); stroke-width: 2; }
+.proof-cap { font-size: 12px; color: var(--muted); min-height: 18px; }
+.proof-cap b { color: var(--ink); font-weight: 600; }
+
+.proof-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); }
+.proof-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.proof-legend > span > i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.proof-legend b { font-weight: 600; color: var(--ink); }
+
+.proof-hbars { display: flex; flex-direction: column; gap: 7px; }
+.proof-hrow { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.proof-hlabel { display: flex; flex-direction: column; min-width: 0; font-size: 12.5px; color: var(--ink-2); }
+.proof-hsub { font-size: 11px; color: var(--muted-2); }
+.proof-htrack { display: flex; gap: 2px; height: 12px; }
+.proof-htrack i { display: block; height: 100%; min-width: 2px; }
+.proof-htrack i:last-child { border-radius: 0 4px 4px 0; }
+.proof-hval { font-size: 12px; color: var(--ink); white-space: nowrap; }
+.proof-more { align-self: flex-start; border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--brand); cursor: pointer; }
+
+.proof-stack { display: flex; gap: 2px; height: 16px; }
+.proof-stack i { display: block; flex-basis: 0; min-width: 3px; height: 100%; }
+.proof-stack i:first-child { border-radius: 4px 0 0 4px; }
+.proof-stack i:last-child { border-radius: 0 4px 4px 0; }
+.proof-stack i:only-child { border-radius: 4px; }
+
+.proof-dots { display: flex; flex-wrap: wrap; gap: 6px; }
+.proof-dot {
+  display: inline-block; width: 14px; height: 14px; border-radius: 99px; flex: none;
+  background: var(--pc-1); box-shadow: 0 0 0 2px var(--surface); outline: none;
+}
+.proof-dot[data-state="no"] { background: var(--pc-off); }
+.proof-dot[data-state="later"] { background: transparent; border: 2px solid var(--pc-soft); }
+.proof-dots .proof-dot { cursor: default; }
+.proof-dots .proof-dot:hover, .proof-dots .proof-dot:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-2); }
+.proof-legend .proof-dot { width: 10px; height: 10px; box-shadow: none; }
+
+.proof-bullet { position: relative; height: 16px; border-radius: 4px; background: var(--surface-3); }
+.proof-bullet-fill { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 4px; background: var(--pc-main); }
+.proof-bullet-tick { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-inline-start: -1px; background: var(--ink); }
+.proof-bullet-dot {
+  position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 99px;
+  background: var(--surface); border: 2px solid var(--ink-2);
+}
+.proof-key-tick { width: 2px !important; height: 12px !important; border-radius: 0 !important; background: var(--ink); }
+.proof-key-dot { border-radius: 99px !important; background: var(--surface); border: 2px solid var(--ink-2); }
+
+.proof-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.proof-list li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+
+/* Commitment Score card: the three habits under the number */
+.proof-habits li { gap: 10px; }

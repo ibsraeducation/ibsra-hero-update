@@ -1,0 +1,182 @@
+/* ==========================================================================
+   Program map — three columns, and the admin's own connections drawn
+   between them.
+
+   The lines are SVG, positioned from measured card rectangles, because they
+   are real edges: which card joins which is the admin's call, and no amount
+   of borders and pseudo-elements can draw an arbitrary one.
+   ========================================================================== */
+
+.pmap-wrap {
+  --pm-gap: clamp(20px, 3.5cqi + 8px, 72px);
+  container-type: inline-size;
+}
+
+/* ---------- the wiring bar ---------- */
+
+.pmap-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px; min-height: 30px;
+}
+.pmap-bar .btn[data-on] {
+  background: var(--brand); border-color: var(--brand); color: var(--on-brand);
+}
+.pmap-bar .btn[data-on]:hover { background: var(--brand-600); border-color: var(--brand-600); }
+
+/* ---------- the columns ---------- */
+
+.pmap {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--pm-gap);
+  align-items: stretch;
+}
+
+.pmap-col { display: flex; flex-direction: column; min-width: 0; }
+
+.pmap-head {
+  display: flex; align-items: center; gap: 8px;
+  height: 26px; margin-bottom: 10px; min-width: 0;
+}
+.pmap-head-label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pmap-head-n {
+  display: grid; place-items: center; flex: none;
+  min-width: 20px; height: 20px; padding-inline: 5px;
+  border-radius: 99px; background: var(--surface-3);
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+}
+
+/* The line under a stage, so the map says what it means without a legend. */
+.pmap-blurb {
+  margin: 12px 0 0; min-height: 34px;
+  font-size: 11.5px; line-height: 1.5; color: var(--muted-2);
+}
+
+.pmap-stack {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 16px;
+}
+
+/* Above the lines: a line must never be drawn across a card's face. */
+.pmap-node { position: relative; z-index: 1; display: flex; }
+.pmap-node > * { flex: 1 1 auto; min-width: 0; }
+
+/* A program the viewer does not have yet: still on the path, plainly not
+   theirs. It stays clickable — that is where it is sold. */
+.pmap-node[data-state="dim"] > * { opacity: .5; }
+.pmap-node[data-state="dim"]:hover > * { opacity: .78; }
+
+.pmap-empty {
+  margin: 0; padding: 18px 12px; text-align: center;
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+  font-size: 11.5px; color: var(--muted-2);
+}
+
+.pmap-add {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px; border: 1px dashed var(--line-hard); border-radius: var(--r-md);
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  transition: color var(--fast), border-color var(--fast), background var(--fast);
+}
+.pmap-add svg { width: 14px; height: 14px; }
+.pmap-add:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-weak); }
+.pmap-add:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---------- the lines ---------- */
+
+.pmap-lines {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: visible; pointer-events: none;
+}
+.pmap-edge-line {
+  fill: none;
+  stroke: var(--line-hard);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pmap-edge[data-dim] .pmap-edge-line { stroke: var(--line); }
+
+/* A 2px line cannot be clicked; this is the thing that actually is. */
+.pmap-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.pmap-edge:has(.pmap-edge-hit:hover) .pmap-edge-line { stroke: var(--rose-500); }
+
+/* ---------- wiring mode ---------- */
+
+/* The whole card becomes one target, so a click cannot land on the ⋯ or on
+   a link inside it by accident. */
+.pmap-pick {
+  position: absolute; inset: -3px; z-index: 3;
+  display: grid; place-items: center;
+  border: 2px solid transparent; border-radius: var(--r-lg);
+  background: transparent; cursor: pointer;
+  transition: background var(--fast), border-color var(--fast);
+}
+.pmap-pick-tag {
+  padding: 5px 10px; border-radius: 99px;
+  background: var(--ink); color: var(--surface);
+  font-size: 11px; font-weight: 650;
+  opacity: 0; transform: translateY(3px);
+  transition: opacity var(--fast), transform var(--fast);
+}
+.pmap-pick:hover { background: color-mix(in srgb, var(--brand) 12%, transparent); border-color: var(--brand); }
+.pmap-pick:hover .pmap-pick-tag { opacity: 1; transform: none; }
+.pmap-pick:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.pmap-node[data-from] .pmap-pick { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent); }
+.pmap-node[data-from] .pmap-pick-tag { opacity: 1; transform: none; background: var(--brand); color: var(--on-brand); }
+
+.pmap-foot {
+  margin: 16px 0 0;
+  font-size: 11.5px; line-height: 1.6; color: var(--muted-2);
+}
+
+/* ---------- narrow ---------- */
+
+/* Below this the columns are too thin to read a card in, so the path becomes
+   stages stacked one after another. The lines come off with them: a line
+   that no longer points anywhere is worse than no line.
+
+   Measured on the map, not the window, because the rail collapses: the same
+   1100px window is three columns with it shut and stacked with it open. */
+@container (max-width: 800px) {
+  .pmap { grid-auto-flow: row; gap: 24px; }
+  .pmap-lines { display: none; }
+  .pmap-stack { gap: 12px; }
+  .pmap-blurb { min-height: 0; margin-top: 8px; }
+  .pmap-col + .pmap-col { padding-top: 20px; border-top: 1px solid var(--line-soft); }
+}
+
+/* The same, for a browser with no container queries. */
+@supports not (container-type: inline-size) {
+  .pmap-wrap { --pm-gap: clamp(20px, 3.5vw, 72px); }
+  @media (max-width: 1060px) {
+    .pmap { grid-auto-flow: row; gap: 24px; }
+    .pmap-lines { display: none; }
+    .pmap-stack { gap: 12px; }
+    .pmap-blurb { min-height: 0; margin-top: 8px; }
+    .pmap-col + .pmap-col { padding-top: 20px; border-top: 1px solid var(--line-soft); }
+  }
+}
+
+/* A phone reads a card, not a column of one. */
+@media (max-width: 560px) {
+  .pmap-head { height: auto; margin-bottom: 8px; }
+  .pmap-blurb { font-size: 11px; }
+  .pmap-add { padding: 10px; }
+}

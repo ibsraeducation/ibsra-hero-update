@@ -1,0 +1,23 @@
+/* ==========================================================================
+   Parent · Ask the mentor — full-screen layout.
+   The page fills the content area: header on top, the thread takes every
+   pixel left, and the composer stays pinned to the bottom. Only the thread
+   scrolls. Loaded after insight.css, so these win over its .mc-* defaults.
+   ========================================================================== */
+
+.page.mc-page {
+  display: flex; flex-direction: column;
+  height: 100%; max-width: none; padding-bottom: 20px;
+}
+.mc-page > .phead { flex: none; }
+
+.mc-page .mc-card { flex: 1 1 auto; min-height: 0; max-width: none; }
+.mc-page .mc-log { flex: 1 1 auto; min-height: 0; max-height: none; }
+.mc-page .mc-compose { flex: none; }
+
+/* On a phone the page scrolls as a whole again; a pinned composer on a
+   short screen leaves no room for the thread. */
+@media (max-width: 620px) {
+  .page.mc-page { height: auto; }
+  .mc-page .mc-log { min-height: 320px; }
+}
