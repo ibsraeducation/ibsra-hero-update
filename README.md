@@ -1,4 +1,6 @@
-# IBSRA Heros — platform (dev stage)
+# ibsra-hero-update
+
+## IBSRA Heros — platform (dev stage)
 
 React + TypeScript + Vite, on a Supabase backend: sign-in for **admin** and
 **student**, with programs, courses, sessions, progress, answers and files in
