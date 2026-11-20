@@ -226,9 +226,11 @@ export async function fetchBatches(loopId?: string): Promise<CourseBatchRow[]> {
 
 /** Which intake is run where, for the enrol form's first step. Readable
  *  by any signed-in family — it is what they are choosing between. */
-export async function fetchBatchRegions(): Promise<Map<string, string>> {
+export async function fetchBatchRegions(loopId?: string): Promise<Map<string, string>> {
   if (!backendLive) return new Map()
-  const { data, error } = await sb().from('course_batches').select('id, region')
+  let q = sb().from('course_batches').select('id, region').neq('status', 'done')
+  if (loopId) q = q.eq('loop_id', loopId)
+  const { data, error } = await q
   if (error) throw error
   return new Map(((data ?? []) as Array<{ id: string; region: string | null }>)
     .map(b => [b.id, b.region || ANYWHERE]))

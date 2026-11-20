@@ -49,7 +49,10 @@ export const LOOPS: Loop[] = [
     startDate: iso(-24), endDate: iso(38), status: 'running', cohortIds: ['ch_a1a'] },
   { id: 'lp_b1', code: 'BRD-L1', trackId: 'trk_brand', name: 'Brand & Canva · Loop 1', index: 1,
     startDate: iso(-52), endDate: iso(6), status: 'running', cohortIds: ['ch_b1a', 'ch_b1b'] },
+  /* The one work course in the demo: the same three levels, but the student
+     builds their own asset in it rather than being taught. */
   { id: 'lp_b2', code: 'BRD-L2', trackId: 'trk_brand', name: 'Brand & Canva · Loop 2', index: 2,
+    kind: 'work',
     startDate: iso(14), endDate: iso(76), status: 'planning', cohortIds: ['ch_b2a'] },
   { id: 'lp_d1', code: 'DAT-L1', trackId: 'trk_data', name: 'Data & Sheets · Loop 1', index: 1,
     startDate: iso(-10), endDate: iso(52), status: 'running', cohortIds: ['ch_d1a'] },

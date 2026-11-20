@@ -164,3 +164,14 @@ export async function fetchPendingTopUps(): Promise<PaymentRow[]> {
   if (error) throw error
   return (data ?? []) as PaymentRow[]
 }
+
+/** Top-ups the admin rejected — with their reason, so the family knows why
+ *  the balance did not move. */
+export async function fetchRejectedTopUps(limit = 10): Promise<PaymentRow[]> {
+  if (!backendLive) return []
+  const { data, error } = await sb().from('payments')
+    .select('*').eq('kind', 'topup').eq('status', 'rejected')
+    .order('created_at', { ascending: false }).limit(limit)
+  if (error) throw error
+  return (data ?? []) as PaymentRow[]
+}

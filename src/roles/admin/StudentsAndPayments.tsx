@@ -17,7 +17,7 @@
    ========================================================================== */
 
 import { useSearchParams } from 'react-router-dom'
-import { CalendarDays, MessageSquare, Receipt, Settings2, Users, WalletCards } from 'lucide-react'
+import { CalendarDays, MessageSquare, Receipt, Settings2, Ticket, Users, WalletCards } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Tabs } from '@/components/ui'
 import { useAdminQueue } from '@/lib/api/adminQueue'
@@ -25,11 +25,12 @@ import { StudentsPanel } from './Students'
 import { PaymentsPanel, type PayTab } from './Payments'
 import { CalendarPanel } from './Calendar'
 import { ScoreboardPanel } from './Scoreboard'
+import { PromoPanel } from './PromoPanel'
 import './wallets.css'
 
-type Tab = 'students' | 'calendar' | 'feedback' | PayTab
+type Tab = 'students' | 'calendar' | 'feedback' | 'promo' | PayTab
 
-const TABS: readonly Tab[] = ['students', 'transfers', 'calendar', 'feedback', 'wallets', 'settings']
+const TABS: readonly Tab[] = ['students', 'transfers', 'calendar', 'feedback', 'promo', 'wallets', 'settings']
 const isTab = (v: string | null): v is Tab => TABS.includes(v as Tab)
 
 export default function StudentsAndPayments() {
@@ -61,6 +62,7 @@ export default function StudentsAndPayments() {
             { value: 'transfers', label: 'Payments', icon: <Receipt />, count: payments || undefined },
             { value: 'calendar', label: 'Calendar', icon: <CalendarDays /> },
             { value: 'feedback', label: 'Students feedback', icon: <MessageSquare /> },
+            { value: 'promo', label: 'Promo codes', icon: <Ticket /> },
             { value: 'wallets', label: 'Transfer to a wallet', icon: <WalletCards /> },
             { value: 'settings', label: 'Payment settings', icon: <Settings2 /> },
           ]}
@@ -70,6 +72,7 @@ export default function StudentsAndPayments() {
       {tab === 'students' ? <StudentsPanel />
         : tab === 'calendar' ? <CalendarPanel />
           : tab === 'feedback' ? <ScoreboardPanel />
+            : tab === 'promo' ? <PromoPanel />
             : <PaymentsPanel tab={tab} />}
     </div>
   )

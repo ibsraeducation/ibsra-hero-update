@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Radio, Video } from 'lucide-react'
+import { BookOpen, Hammer, Link2, Radio, Video } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { Field, InlineEdit, Switch } from '@/components/ui'
+import { Field, InlineEdit, Segmented, Switch } from '@/components/ui'
 import { fromLocalInput, toLocalInput } from '@/lib/format'
 import { skillsFromLists } from '@/lib/programInfo'
-import type { Session } from '@/lib/types'
+import {
+  COURSE_KIND_META, courseKind, courseSessionKind, SESSION_KIND_META,
+  type Session, type SessionKind,
+} from '@/lib/types'
 import { listsOf, ValuesFields, type Lists } from '../ValuesFields'
 import { VideoField } from '../VideoField'
 
@@ -14,6 +17,17 @@ export function SessionSettings({ session }: { session: Session }) {
   const set = (patch: Partial<Session>) => update(session.id, patch)
 
   const instructors = db.people.filter(p => p.role === 'instructor')
+
+  /* What this session is for. "Follow the course" is the normal answer and
+     the one that keeps following — picking the course's own kind by hand
+     looks identical today and stops moving the day the course changes, so
+     the three options are a real three, not two with a shortcut. */
+  const loop = db.loops.find(l => l.id === session.loopId)
+  const inherited = courseSessionKind(loop)
+  const pick: SessionKind | 'course' = session.kind ?? 'course'
+  const kindHint = pick === 'course'
+    ? `Follows ${COURSE_KIND_META[courseKind(loop)].label.toLowerCase()} — ${SESSION_KIND_META[inherited].label.toLowerCase()}. Change the course and this session changes with it.`
+    : SESSION_KIND_META[pick].hint
 
   /* The same seven lists a program and a course have. Held here while the
      admin types, and written to the session on every change the way the
@@ -67,6 +81,18 @@ export function SessionSettings({ session }: { session: Session }) {
                   onChange={e => set({ code: e.target.value })} />
               </Field>
             </div>
+
+            <Field label="What this session is for" hint={kindHint}>
+              <Segmented
+                value={pick}
+                onChange={v => set({ kind: v === 'course' ? undefined : v })}
+                options={[
+                  { value: 'course', label: 'Follow the course', icon: <Link2 /> },
+                  { value: 'teaching', label: SESSION_KIND_META.teaching.label, icon: <BookOpen /> },
+                  { value: 'work', label: SESSION_KIND_META.work.label, icon: <Hammer /> },
+                ]}
+              />
+            </Field>
 
             <div className="grid g-2">
               <Field

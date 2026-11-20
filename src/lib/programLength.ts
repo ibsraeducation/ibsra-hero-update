@@ -151,6 +151,21 @@ export function parseAsk(v: unknown): WeekAsk | null {
 export interface SessionLength {
   loopId: string
   durationMin: number
+  type?: string
+  titles?: Array<{ estimatedMin?: number; video?: { durationSec?: number; state?: string } | null }>
+}
+
+/** Minutes one session runs. A live session is as long as it was set to; a
+ *  recorded one is the sum of its videos, and its topics' estimates stand in
+ *  for a video that is not uploaded yet. Nobody types this in. */
+export function sessionLength(s: SessionLength): number {
+  if (s.type !== 'live' && s.titles?.length) {
+    const video = s.titles.reduce((a, t) => a + (t.video?.durationSec ? t.video.durationSec / 60 : 0), 0)
+    if (video > 0) return Math.round(video)
+    const est = s.titles.reduce((a, t) => a + Math.max(0, t.estimatedMin || 0), 0)
+    if (est > 0) return est
+  }
+  return Math.max(0, s.durationMin || 0)
 }
 
 /** The teaching hours in one course, added up from the sessions laid out
@@ -162,15 +177,14 @@ export function courseHours(
 ): number | null {
   const min = sessions
     .filter(s => s.loopId === course.id)
-    .reduce((a, s) => a + Math.max(0, s.durationMin || 0), 0)
+    .reduce((a, s) => a + sessionLength(s), 0)
   return min > 0 ? min / 60 : course.durationHours ?? null
 }
 
 /** The whole program: the sum of its courses. Given the sessions, each
- *  course is added up from the ones inside it rather than from what was
- *  typed, so the length a family is shown follows the timetable itself.
- *  Null when any course has no hours at all — half a number is worse than
- *  none, because it reads as a shorter program. */
+ *  course is added up from the ones inside it, so the length a family is
+ *  shown follows the timetable itself. A course with nothing in it yet adds
+ *  nothing; null only when no course has any hours. */
 export function programHours(
   courses: Array<{ id?: string; durationHours?: number | null }>,
   sessions?: SessionLength[],
@@ -179,6 +193,6 @@ export function programHours(
   const each = courses.map(c => (sessions && c.id
     ? courseHours({ id: c.id, durationHours: c.durationHours }, sessions)
     : c.durationHours ?? null))
-  if (each.some(h => !h)) return null
-  return each.reduce((a: number, h) => a + (h ?? 0), 0)
+  const total = each.reduce((a: number, h) => a + (h ?? 0), 0)
+  return total > 0 ? total : null
 }

@@ -50,16 +50,21 @@
 
 .fb-chart {
   display: flex; align-items: flex-end; gap: 10px;
-  height: 186px; overflow-x: auto; padding-bottom: 2px;
+  height: 200px; overflow-x: auto; padding-bottom: 2px;
 }
-.fb-col { display: flex; flex-direction: column; gap: 6px; height: 100%; min-width: 34px; flex: 1 1 34px; }
+/* Wide enough for "Session", which then wraps its number onto a second line.
+   The column was 34px while the label read "S1". */
+.fb-col { display: flex; flex-direction: column; gap: 6px; height: 100%; min-width: 46px; flex: 1 1 46px; }
 /* The bars themselves take the height; the label sits under them. */
 .fb-bars { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
 .fb-bar {
   flex: 1; border-radius: 3px 3px 1px 1px; min-height: 2px;
   transition: height var(--med);
 }
-.fb-x { font-size: 11px; color: var(--muted-2); text-align: center; font-variant-numeric: tabular-nums; }
+.fb-x {
+  font-size: 11px; color: var(--muted-2); text-align: center;
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
 .fb-x[data-missed] { color: var(--rose-600); font-weight: 600; }
 
 /* ---------------- the project sequence ---------------- */
@@ -97,7 +102,7 @@
   .wal-side { align-items: flex-start; }
   .wal-pending { text-align: start; }
   .wal-figure { font-size: 28px; }
-  .fb-chart { height: 150px; }
+  .fb-chart { height: 164px; }
 }
 
 /* ---------------- the courses under a program card ---------------- */

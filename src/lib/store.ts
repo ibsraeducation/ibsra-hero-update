@@ -1,18 +1,19 @@
 /* ==========================================================================
    In-memory store with debounced localStorage persistence.
-   Every mutation is synchronous — no fake latency anywhere, so the UI is a
+   Every mutation is synchronous ΓÇö no fake latency anywhere, so the UI is a
    fair test of how the real thing should feel.
    ========================================================================== */
 
 import { create } from 'zustand'
 import { buildDB, buildProducts } from './seed'
 import { backendLive } from './supabase'
-import { AREA_META, trackArea } from './area'
 import { LEGACY_NEXT } from './programs'
 import { videoLinkProblem } from './video'
 import {
-  DB_VERSION, PRODUCT_CATEGORY_META, STEP_TYPE_META, TITLE_KIND_META, VIEW_ROLES, titleKind,
+  DB_VERSION, PRODUCT_CATEGORY_META, STEP_TYPE_META, TITLE_KIND_META, VIEW_ROLES, isClip, titleKind,
 } from './types'
+import { fetchBatches } from './api/schedule'
+import type { CourseBatchRow } from './api/rows'
 import type {
   DB, Loop, Track, Material, MaterialKind, Person, Product, ProductCategory,
   ProductStatus, Session, SessionType, Step, StepType, Task, TaskKind, Title, TitleKind, ViewRole,
@@ -37,7 +38,7 @@ const PROGRAM_FIELDS = [
 
 /** A saved program from before v3 has no financial or description values.
  *  For the seeded ones, fill only the fields that are missing from the seed
- *  row for the same track — never overwrite what the admin has entered. */
+ *  row for the same track ΓÇö never overwrite what the admin has entered. */
 function backfillPrograms(products: Product[]): Product[] {
   if (!products.some(p => p.category === 'program' && p.installments === undefined)) return products
   const seeded = new Map(buildProducts().filter(p => p.category === 'program').map(p => [p.trackId, p]))
@@ -71,7 +72,7 @@ function migrate(db: DB): DB {
 
 function load(): DB {
   /* With a backend, programs, courses, listings and the people on them all
-     come from the server — tracks/loops/sessions after sign-in (lib/sync),
+     come from the server ΓÇö tracks/loops/sessions after sign-in (lib/sync),
      products through `reloadCatalogue()` the moment a catalogue-reading page
      mounts. Nothing seeded ever reaches a real screen: an admin's
      "Instructor" picker, the daily feedback list and any page that still
@@ -95,7 +96,7 @@ function persist(db: DB) {
   if (backendLive) return
   clearTimeout(saveTimer)
   saveTimer = window.setTimeout(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(db)) } catch { /* quota — ignore in dev */ }
+    try { localStorage.setItem(KEY, JSON.stringify(db)) } catch { /* quota ΓÇö ignore in dev */ }
   }, 260)
 }
 
@@ -110,21 +111,25 @@ interface State {
   theme: 'light' | 'dark'
   railCollapsed: boolean
   /** How the programs page is read: the path as a shape, or the plain grid.
-   *  The map opens first — the shape is the thing a reader needs first, and
+   *  The map opens first ΓÇö the shape is the thing a reader needs first, and
    *  the grid is one click away when they want the facts. */
   programView: 'map' | 'grid'
   /** Topics the student has marked done, keyed by session id. Local to the
-   *  browser — it is the student's own reading progress, not a graded record,
+   *  browser ΓÇö it is the student's own reading progress, not a graded record,
    *  so it lives with the UI prefs rather than in the content DB. */
   done: Record<string, string[]>
   /** Listings the reader has flagged interest in. Local to the browser like
-   *  `done`, because it is a note to the mentor rather than an order — and it
+   *  `done`, because it is a note to the mentor rather than an order ΓÇö and it
    *  lives in the store, not in a page, so the catalogue and the detail page
    *  can never disagree about what has been asked for. */
   interest: string[]
   toasts: Toast[]
-  /** Bumps on every write so "Saved · just now" can render honestly. */
+  /** Bumps on every write so "Saved ┬╖ just now" can render honestly. */
   savedAt: number
+  /** All course batches, shared across every panel so adding one in Programs
+   *  is immediately visible in Calendar, Scoreboard, AvailabilityEditor and
+   *  the enrolment dialog ΓÇö no per-page re-fetch needed. */
+  batches: CourseBatchRow[]
 
   /* infra */
   toast: (text: string, kind?: ToastKind) => void
@@ -136,6 +141,8 @@ interface State {
   setDone: (sessionId: string, titleId: string, on: boolean) => void
   toggleInterest: (productId: string) => void
   resetDemo: () => void
+  /** Re-fetch all batches from the server and update every subscriber. */
+  reloadBatches: () => Promise<void>
 
   /* sessions */
   createSession: (patch?: Partial<Session>) => Session
@@ -169,12 +176,12 @@ interface State {
   resetFlow: (sessionId: string) => void
   /** Add one step straight into the sequence, with its own type. */
   addStep: (sessionId: string, titleId: string, type: StepType) => Step | undefined
-  /** Re-label a step — what it is has nothing to do with where it sits. */
+  /** Re-label a step ΓÇö what it is has nothing to do with where it sits. */
   setStepType: (sessionId: string, step: Step, type: StepType) => void
   /** Delete the item behind a step: the recording, the file or the question. */
   deleteStep: (sessionId: string, step: Step) => void
 
-  /* programs and courses — the folders sessions live in */
+  /* programs and courses ΓÇö the folders sessions live in */
   createTrack: (patch?: Partial<Track>) => Track
   updateTrack: (id: string, patch: Partial<Track>) => void
   /** Only a program with no courses left in it. */
@@ -195,10 +202,10 @@ interface State {
 
   /* people */
   updatePerson: (id: string, patch: Partial<Person>) => void
-  /** A parent registering another child of theirs. Not a signup — just a
+  /** A parent registering another child of theirs. Not a signup ΓÇö just a
    *  record the mentor can then enrol into a cohort. */
   addChild: (parentId: string, patch: { name: string; age?: number }) => Person | undefined
-  /** Put a child in the cohort a course actually runs in — moving them out
+  /** Put a child in the cohort a course actually runs in ΓÇö moving them out
    *  of whichever cohort they were in before, so a student is never counted
    *  as taking two courses of the same program at once. */
   enrollChild: (studentId: string, loopId: string) => void
@@ -275,6 +282,7 @@ export const useStore = create<State>((set, get) => {
     interest: uiPrefs.interest ?? [],
     toasts: [],
     savedAt: 0,
+    batches: [],
 
     toast: (text, kind = 'ok') => {
       const id = uid('t')
@@ -282,6 +290,13 @@ export const useStore = create<State>((set, get) => {
       window.setTimeout(() => get().dropToast(id), 3200)
     },
     dropToast: id => set(st => ({ toasts: st.toasts.filter(t => t.id !== id) })),
+
+    reloadBatches: async () => {
+      try {
+        const bs = await fetchBatches()
+        set({ batches: bs })
+      } catch { /* leave the existing list in place on failure */ }
+    },
 
     setRole: role => { saveUI({ role }); set({ role }) },
     toggleTheme: () => set(st => {
@@ -313,7 +328,7 @@ export const useStore = create<State>((set, get) => {
       saveUI({ interest })
       get().toast(
         on
-          ? 'Interest withdrawn — your mentor will not see it'
+          ? 'Interest withdrawn ΓÇö your mentor will not see it'
           : 'Flagged for your mentor. Nothing is reserved and nothing is charged.',
         on ? 'info' : 'ok',
       )
@@ -371,7 +386,7 @@ export const useStore = create<State>((set, get) => {
       if (!src) return
       const nowIso = new Date().toISOString()
       /* Every id is fresh in the copy, so the step keys are rewritten with it
-         — otherwise the duplicate would silently lose its sequence. */
+         ΓÇö otherwise the duplicate would silently lose its sequence. */
       const remap = new Map<string, string>()
       const fresh = (p: string, old: string) => {
         const next = uid(p)
@@ -414,7 +429,7 @@ export const useStore = create<State>((set, get) => {
         sessions: db.sessions.map(s =>
           set_.has(s.id) ? { ...s, status, updatedAt: new Date().toISOString() } : s),
       }))
-      get().toast(`${ids.length} session${ids.length > 1 ? 's' : ''} → ${status}`)
+      get().toast(`${ids.length} session${ids.length > 1 ? 's' : ''} ΓåÆ ${status}`)
     },
 
     reorderSessions: (loopId, fromId, toId) => write(db => {
@@ -578,9 +593,9 @@ export const useStore = create<State>((set, get) => {
       let add: (ss: Session) => Session
 
       if (meta.kind === 'material' || type === 'video') {
-        /* An extra recording is a video file in the topic — the topic's own
+        /* An extra recording is a video file in the topic ΓÇö the topic's own
            recording slot holds only the first one. */
-        /* A live step is a link with a time on it — the class the student
+        /* A live step is a link with a time on it ΓÇö the class the student
            joins, sitting in the sequence where it actually happens. */
         const live = type === 'live'
         const m: Material = {
@@ -594,10 +609,10 @@ export const useStore = create<State>((set, get) => {
       } else {
         const mcq = type === 'mcq'
         /* An image + text question is answered with a picture of the work and
-           a written note about it — mentor-graded, like the rest. */
+           a written note about it ΓÇö mentor-graded, like the rest. */
         const img = type === 'imagetext'
         /* Technical and branding tasks are a reference video plus a text
-           answer — same shape either way, just what the work is about. */
+           answer ΓÇö same shape either way, just what the work is about. */
         const k: Task = {
           id: uid('tsk'), order: t.tasks.length,
           kind: mcq ? 'mcq' : img ? 'imagetext' : 'long',
@@ -636,7 +651,7 @@ export const useStore = create<State>((set, get) => {
           }
           return { ...t, tasks: reindex(t.tasks.filter(k => k.id !== step.refId)) }
         })
-        /* Dropped from the saved order too — sessionFlow() would ignore a dead
+        /* Dropped from the saved order too ΓÇö sessionFlow() would ignore a dead
            key anyway, but there is no reason to keep carrying it. */
         return s.flowOrder
           ? { ...next, flowOrder: s.flowOrder.filter(k => k !== step.key) }
@@ -651,7 +666,7 @@ export const useStore = create<State>((set, get) => {
     },
 
     setStepType: (sessionId, step, type) => {
-      /* Only a material can count as a video — an extra recording in the
+      /* Only a material can count as a video ΓÇö an extra recording in the
          topic. A task cannot, and the topic's own recording stays what it is. */
       if (step.kind === 'video' || (type === 'video' && step.kind !== 'material')) return
       write(db => mapSession(db, sessionId, s => mapTitle(s, step.titleId, t => {
@@ -672,13 +687,13 @@ export const useStore = create<State>((set, get) => {
           tasks: t.tasks.map(k => {
             if (k.id !== step.refId) return k
             /* Becoming an MCQ has to mean it can be answered as one. Going the
-               other way leaves the options alone — nothing is thrown away. */
+               other way leaves the options alone ΓÇö nothing is thrown away. */
             const toMcq = type === 'mcq' && k.kind !== 'mcq' && k.kind !== 'multi'
             /* Same discipline for image + text: the type and the way it is
                answered are never allowed to disagree. */
             const toImg = type === 'imagetext' && k.kind !== 'imagetext'
             /* Technical and branding work is a reference video plus a text
-               answer — becoming either has to mean it can be answered that way. */
+               answer ΓÇö becoming either has to mean it can be answered that way. */
             const toText = (type === 'technical' || type === 'branding')
               && k.kind !== 'short' && k.kind !== 'long'
             return {
@@ -748,7 +763,7 @@ export const useStore = create<State>((set, get) => {
       ? db
       : {
           ...db,
-          /* The lines into it go with it — a connection to a program that is
+          /* The lines into it go with it ΓÇö a connection to a program that is
              no longer there would just be a line into empty space. */
           tracks: db.tracks
             .filter(t => t.id !== id)
@@ -784,7 +799,7 @@ export const useStore = create<State>((set, get) => {
       const siblings = db.loops.filter(l => l.trackId === trackId)
       const index = siblings.reduce((m, l) => Math.max(m, l.index), 0) + 1
       /* A course follows the one before it: it starts the week after the
-         previous one ends, and runs nine weeks — the middle of 8–10. */
+         previous one ends, and runs nine weeks ΓÇö the middle of 8ΓÇô10. */
       const prevEnd = siblings.reduce<string | null>(
         (m, l) => (!m || l.endDate > m ? l.endDate : m), null)
       const start = prevEnd ? new Date(new Date(prevEnd).getTime() + 7 * 864e5) : new Date()
@@ -844,7 +859,7 @@ export const useStore = create<State>((set, get) => {
         name: '',
         summary: '',
         status: 'draft',
-        /* null, not 0 — an undecided price must never render as "Free". */
+        /* null, not 0 ΓÇö an undecided price must never render as "Free". */
         price: null,
         trackId: null,
         loopId: null,
@@ -923,7 +938,7 @@ export const useStore = create<State>((set, get) => {
       get().toast(
         status === 'published'
           ? `${ids.length} listing${ids.length > 1 ? 's' : ''} live in the marketplace`
-          : `${ids.length} listing${ids.length > 1 ? 's' : ''} → ${status}`,
+          : `${ids.length} listing${ids.length > 1 ? 's' : ''} ΓåÆ ${status}`,
       )
     },
 
@@ -970,7 +985,7 @@ export const useStore = create<State>((set, get) => {
       if (!student || !loop) return
 
       /* The cohort a seat is actually taken in: whichever the course's
-         cohorts still has room, or the first one if every one is full —
+         cohorts still has room, or the first one if every one is full ΓÇö
          a mentor sorts a genuine overflow, this just never loses the ask. */
       const cohorts = db.cohorts.filter(c => c.loopId === loopId)
       const cohort = cohorts.find(c => c.studentIds.length < c.seats) ?? cohorts[0]
@@ -982,7 +997,7 @@ export const useStore = create<State>((set, get) => {
           : p)),
         cohorts: d.cohorts.map(c => {
           if (c.id === cohort?.id) return { ...c, studentIds: [...new Set([...c.studentIds, studentId])] }
-          /* Drop them from whatever cohort they were sitting in before —
+          /* Drop them from whatever cohort they were sitting in before ΓÇö
              a student is enrolled in one course of a program at a time. */
           return c.studentIds.includes(studentId)
             ? { ...c, studentIds: c.studentIds.filter(id => id !== studentId) }
@@ -992,7 +1007,7 @@ export const useStore = create<State>((set, get) => {
       get().toast(
         cohort
           ? `${student.name} enrolled in ${loop.name}`
-          : `${student.name} enrolled in ${loop.name} — no cohort scheduled yet, a mentor will place them`,
+          : `${student.name} enrolled in ${loop.name} ΓÇö no cohort scheduled yet, a mentor will place them`,
       )
     },
   }
@@ -1007,7 +1022,7 @@ export const useSession = (id: string | undefined) =>
   useStore(s => (id ? s.db.sessions.find(x => x.id === id) : undefined))
 
 /** A question's own type: the label set by hand wins, and without one it is
- *  read off the question — an MCQ is an MCQ, anything else is technical work. */
+ *  read off the question ΓÇö an MCQ is an MCQ, anything else is technical work. */
 export const taskType = (k: Task): StepType =>
   k.category ?? (k.kind === 'mcq' || k.kind === 'multi' ? 'mcq'
     : k.kind === 'imagetext' ? 'imagetext'
@@ -1064,11 +1079,10 @@ export function sessionFlow(s: Session): Step[] {
 /** Whether this session has been arranged by hand. */
 export const hasCustomFlow = (s: Session) => !!s.flowOrder?.length
 
-/** Where a session lives in its admin area (Material or Work): program → course → session. */
+/** Where a session lives in the admin: program ΓåÆ course ΓåÆ session. */
 export function materialPath(db: DB, s: Session): string {
   const loop = db.loops.find(l => l.id === s.loopId)
-  const root = AREA_META[trackArea(db.tracks.find(t => t.id === loop?.trackId))].admin
-  return loop ? `${root}/${loop.trackId}/${loop.id}/${s.id}` : root
+  return loop ? `/admin/material/${loop.trackId}/${loop.id}/${s.id}` : '/admin/material'
 }
 
 export function sessionStats(s: Session) {
@@ -1076,7 +1090,7 @@ export function sessionStats(s: Session) {
   for (const t of s.titles) {
     if (titleKind(t) === 'project') projects++
     if (t.video && t.video.state === 'ready') videos++
-    /* A project is not missing anything by having no recording — a brief is
+    /* A project is not missing anything by having no recording ΓÇö a brief is
        not a lecture. Only topics are counted short. */
     else if (titleKind(t) === 'topic') missingVideo++
     materials += t.materials.length
@@ -1102,7 +1116,7 @@ export function readiness(s: Session): string[] {
   if (emptyProject.length) gaps.push(`${emptyProject.length} project${emptyProject.length > 1 ? 's' : ''} with nothing in it`)
   const processing = s.titles.filter(t => t.video?.state === 'processing')
   if (processing.length) gaps.push(`${processing.length} video${processing.length > 1 ? 's' : ''} still processing`)
-  /* Connected, a recording is a link that has to actually embed — a wrong
+  /* Connected, a recording is a link that has to actually embed ΓÇö a wrong
      link or a link pasted under the wrong provider would open nothing. */
   const badLink = backendLive
     ? s.titles.filter(t => t.video && t.video.provider !== 'upload' && videoLinkProblem(t.video.url, t.video.provider))
@@ -1116,6 +1130,14 @@ export function readiness(s: Session): string[] {
   if (noTasks.length) gaps.push(`${noTasks.length} topic${noTasks.length > 1 ? 's' : ''} without Q&A`)
   const blankQ = s.titles.flatMap(t => t.tasks).filter(t => !t.question.trim())
   if (blankQ.length) gaps.push(`${blankQ.length} question${blankQ.length > 1 ? 's' : ''} left blank`)
+  /* An extra recording ΓÇö a project's steps are one each ΓÇö is as empty as a
+     topic with no video until somebody posts the link. Counted here for the
+     same reason: the card should say what is still missing, not let a
+     session go out with ten blank players in it. */
+  const blankClip = s.titles.flatMap(t => t.materials).filter(m => isClip(m) && !m.url.trim())
+  if (blankClip.length) {
+    gaps.push(`${blankClip.length} video step${blankClip.length > 1 ? 's' : ''} without a recording`)
+  }
   /* A live step inside a topic owes the same two things a live session does. */
   const liveSteps = s.titles.flatMap(t => t.materials).filter(m => m.category === 'live')
   const liveNoLink = liveSteps.filter(m => !m.url.trim())
@@ -1137,7 +1159,7 @@ export const useProducts = () => useStore(s => s.db.products)
 export function productReadiness(p: Product): string[] {
   const gaps: string[] = []
   if (!p.name.trim()) gaps.push('Needs a name')
-  if (!p.summary.trim()) gaps.push('Needs a summary — this is what the family reads')
+  if (!p.summary.trim()) gaps.push('Needs a summary ΓÇö this is what the family reads')
   if (p.price === null) gaps.push('Price not set')
   if (p.price !== null && p.price < 0) gaps.push('Price cannot be negative')
   if (!p.duration.trim()) gaps.push('Needs a duration')
@@ -1145,7 +1167,7 @@ export function productReadiness(p: Product): string[] {
   if (p.ageMin > p.ageMax) gaps.push('Age range runs backwards')
   if (p.startDate && p.endDate && p.startDate > p.endDate) gaps.push('Ends before it starts')
   if ((p.deposit ?? 0) > 0 && p.price !== null && (p.deposit ?? 0) > p.price) gaps.push('Deposit is more than the price')
-  if (p.category === 'program' && !p.trackId) gaps.push('No content yet — save it to build its courses in Material')
+  if (p.category === 'program' && !p.trackId) gaps.push('No content yet ΓÇö save it to build its courses in Material')
   /* A kit ships; everything else is taught on a date, so it needs one. */
   if (p.category !== 'kit' && !p.startDate) gaps.push('No start date')
   return gaps
@@ -1184,7 +1206,7 @@ export function productContent(db: DB, p: Product): {
 }
 
 /** The courses behind a listing, with the sessions a student would actually
- *  open. Only published sessions count — a detail page must not advertise
+ *  open. Only published sessions count ΓÇö a detail page must not advertise
  *  content that is still a draft in the CMS. Empty for an unlinked listing,
  *  which is the honest answer rather than an invented syllabus. */
 export function productCourses(db: DB, p: Product): Array<{ loop: Loop; sessions: Session[] }> {

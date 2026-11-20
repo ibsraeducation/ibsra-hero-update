@@ -3,18 +3,21 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BackLink, useGoBack } from '@/lib/backNav'
 import {
   AlertTriangle, BookOpen, ChevronRight, Copy, EyeOff, FileText, Hammer, ImagePlus,
-  Layers, ListChecks, ListOrdered, MoreHorizontal, Paperclip, Pencil, Plus, Radio,
+  Layers, ListChecks, ListOrdered, Lock, MoreHorizontal, Paperclip, Pencil, Plus, Radio,
   Trash2, UploadCloud, Video,
 } from 'lucide-react'
 import { readiness, sessionFlow, sessionStats, useStore } from '@/lib/store'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Cover, sessionCover, toneCover } from '@/components/Cover'
-import { Badge, Confirm, Empty, Field, Menu, MenuItem, MenuLabel, MenuSep, Modal, Switch, Tabs } from '@/components/ui'
+import {
+  Badge, Confirm, Empty, Field, Menu, MenuItem, MenuLabel, MenuSep, Modal, Segmented, Switch, Tabs,
+} from '@/components/ui'
 import { date, mins } from '@/lib/format'
 import { courseHours, hoursLabel } from '@/lib/programLength'
 import {
-  STATUS_META,
-  type Loop, type ProgramStage, type PublishStatus, type Session, type TabVideos, type Track,
+  COURSE_KIND_META, courseKind, SESSION_KIND_META, sessionDiffers, sessionKind, STATUS_META,
+  type CourseKind, type Loop, type ProgramStage, type PublishStatus, type Session,
+  type TabVideos, type Track,
 } from '@/lib/types'
 import { PickCard } from '@/components/PickCard'
 import { ProgramPicker } from '@/components/ProgramPicker'
@@ -29,8 +32,6 @@ import { CourseOverview } from '@/components/CourseOverview'
 import { listsOf, savedLists, ValuesFields } from './ValuesFields'
 import { VideoField } from './VideoField'
 import { cleanList } from '@/lib/programInfo'
-import { AREA_META, cap, inArea, trackArea, useArea, useNouns } from '@/lib/area'
-
 /* ==========================================================================
    Material — the whole admin surface, three steps deep:
      1. training program (track)  →  2. course (loop)  →  3. sessions & topics
@@ -38,9 +39,14 @@ import { AREA_META, cap, inArea, trackArea, useArea, useNouns } from '@/lib/area
    recording, its material and its Q&A. Publishing a session is what puts it
    in front of a student — nothing else here is visible to them.
 
-   Work runs on these same pages at /admin/work, with programs of its own —
-   where the student works on their assets. Nothing is shared between the two.
+   Work used to be a second surface running on these same pages at
+   /admin/work, with programs of its own. It is a course type now: a program
+   holds training courses and work courses side by side, and this is the one
+   door into both.
    ========================================================================== */
+
+const ADMIN_BASE = '/admin/material'
+const ADMIN_LABEL = 'Material'
 
 export function Crumbs({ trail }: { trail: Array<{ label: string; to?: string }> }) {
   return (
@@ -112,13 +118,13 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
   const sessions = useStore(s => s.db.sessions)
   const inside = loop ? sessions.filter(x => x.loopId === loop.id).length : 0
   const goBack = useGoBack()
-  const area = useArea()
-  const base = AREA_META[area].admin
-  /* The same form names a course in Material and a milestone in Work. */
-  const nouns = useNouns()
+  const base = ADMIN_BASE
 
   const next = count + 1
   const [name, setName] = useState(loop?.name ?? '')
+  /* What the course is for. A program holds both kinds, so this is asked
+     about the course rather than about the program above it. */
+  const [kind, setKind] = useState<CourseKind>(() => courseKind(loop))
   const [lists, setLists] = useState(() => listsOf(loop))
   /* What the course covers, written the same way a program's lists are. */
   const [overview, setOverview] = useState(loop?.overview ?? '')
@@ -127,33 +133,37 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
      course — they carry the lengths — and typed only while it has none. The
      program's length a family sees is the sum of its courses divided by the
      hours a week they pick. */
-  const [hours, setHours] = useState(loop?.durationHours ? String(loop.durationHours) : '')
   const auto = loop
     ? courseHours({ id: loop.id, durationHours: null }, sessions)
     : null
   const [tabVideos, setTabVideos] = useState<TabVideos>(() => loop?.tabVideos ?? {})
   const [tab, setTab] = useState<'about' | 'covers' | 'values'>('about')
   const [confirm, setConfirm] = useState(false)
+  const [locked, setLocked] = useState(loop?.locked ?? false)
+  const [listed, setListed] = useState(loop?.listed ?? true)
 
   const save = () => {
     const patch: Partial<Loop> = {
-      name: name.trim() || (loop?.name ?? `${cap(nouns.loop)} ${next}`),
+      name: name.trim() || (loop?.name ?? `Course ${next}`),
+      kind,
+      locked,
+      listed,
       ...savedLists(lists),
       overview: cleanList(overview),
       videoUrl: videoUrl.trim() || null,
       tabVideos,
-      durationHours: auto ?? (Number(hours) > 0 ? Math.min(2000, Math.round(Number(hours))) : null),
+      durationHours: auto ?? loop?.durationHours ?? null,
     }
     if (loop) {
       updateLoop(loop.id, patch)
-      toast(`${cap(nouns.loop)} saved`)
+      toast('Course saved')
       onClose()
       return
     }
     /* The course is created and that is all: it lands in the grid, and
        opening it is a separate decision. */
     const created = createLoop(track.id, patch)
-    toast(`${cap(nouns.loop)} ${created.index} added`)
+    toast(`Course ${created.index} added`)
     onClose()
   }
 
@@ -162,9 +172,9 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
       open
       className="pf-modal"
       onClose={onClose}
-      title={loop ? loop.name || `${cap(nouns.loop)} ${loop.index}` : `New ${nouns.loop}`}
+      title={loop ? loop.name || `Course ${loop.index}` : 'New course'}
       description={loop
-        ? `${cap(nouns.loop)} ${loop.index} of ${track.name}`
+        ? `Course ${loop.index} of ${track.name}`
         : `Number ${next} in ${track.name}`}
       footer={
         <>
@@ -176,7 +186,7 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
           <span className="grow" />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={save}>
-            {loop ? 'Save' : `Add ${nouns.loop}`}
+            {loop ? 'Save' : `Add course`}
           </button>
         </>
       }
@@ -195,33 +205,49 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
         <div className="pf-body">
           {tab === 'about' && (
             <div className="pf-col">
-              <Field label={`${cap(nouns.loop)} name`}>
+              <Field label="Course name">
                 <input className="inp" autoFocus value={name}
-                  placeholder={`${cap(nouns.loop)} ${loop?.index ?? next} — e.g. Scripting & hooks`}
+                  placeholder={`Course ${loop?.index ?? next} — e.g. Scripting & hooks`}
                   onChange={e => setName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') save() }} />
               </Field>
 
-              <Field label="Duration — teaching hours, lectures and sections together"
-                hint={auto !== null
-                  ? `Added up from the ${inside} session${inside === 1 ? '' : 's'} inside this ${nouns.loop} — change one's length and this follows.`
-                  : `Type it while this ${nouns.loop} is empty. The moment it has sessions, it is added up from their lengths.`}>
-                {auto !== null ? (
-                  <input className="inp tnum" readOnly value={hoursLabel(auto)}
-                    style={{ maxWidth: 140 }} aria-label="Teaching hours" />
-                ) : (
-                  <input className="inp" type="number" min={1} max={2000} value={hours}
-                    placeholder="e.g. 30" style={{ maxWidth: 140 }}
-                    onChange={e => setHours(e.target.value)} />
-                )}
+              <Field label="Course type" hint={COURSE_KIND_META[kind].hint}>
+                <Segmented value={kind} onChange={setKind} options={[
+                  { value: 'training', label: COURSE_KIND_META.training.label, icon: <BookOpen /> },
+                  { value: 'work', label: COURSE_KIND_META.work.label, icon: <Hammer /> },
+                ]} />
               </Field>
 
+              {auto !== null && (
+                <Field label="Duration" hint="Added up from the videos and live sessions inside this course.">
+                  <input className="inp tnum" readOnly value={hoursLabel(auto)}
+                    style={{ maxWidth: 140 }} aria-label="Duration" />
+                </Field>
+              )}
+
               <VideoField label="Course video" value={videoUrl} onChange={setVideoUrl} />
+
+              <label className="pf-switch">
+                <Switch on={!locked} onChange={on => setLocked(!on)} label="Open this course to students" />
+                <span className="stack g2">
+                  <b className="t-sm">Open to students</b>
+                  <span className="t-xs c-muted2">{locked ? 'Locked' : 'Students can open it'}</span>
+                </span>
+              </label>
+
+              <label className="pf-switch">
+                <Switch on={listed} onChange={setListed} label="Open this course to families" />
+                <span className="stack g2">
+                  <b className="t-sm">Open to families</b>
+                  <span className="t-xs c-muted2">{listed ? 'Families can see it' : 'Hidden from families'}</span>
+                </span>
+              </label>
             </div>
           )}
 
           {tab === 'covers' && (
-            <CoversEditor value={overview} videos={tabVideos.covers ?? []} noun={nouns.loop}
+            <CoversEditor value={overview} videos={tabVideos.covers ?? []} noun="course"
               onChange={(md, covers) => { setOverview(md); setTabVideos(v => ({ ...v, covers })) }} />
           )}
 
@@ -242,8 +268,8 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
             onClose()
             goBack(`${base}/${track.id}`, { replace: true })
           }}
-          title={`Delete this ${nouns.loop}?`}
-          body={<>“{loop.name}” and {inside === 1 ? 'the 1 session' : `all ${inside} sessions`} inside it are removed, with every topic, recording, file and question in them. The {nouns.loopPlural} after it move up one place.</>}
+          title={`Delete this course?`}
+          body={<>“{loop.name}” and {inside === 1 ? 'the 1 session' : `all ${inside} sessions`} inside it are removed, with every topic, recording, file and question in them. The courses after it move up one place.</>}
         />
       )}
     </Modal>
@@ -255,8 +281,7 @@ export function CourseForm({ track, loop, onClose }: { track: Track; loop?: Loop
 function Programs() {
   const db = useStore(s => s.db)
   const deleteProgram = useStore(s => s.deleteProgram)
-  const area = useArea()
-  const { admin: base } = AREA_META[area]
+  const base = ADMIN_BASE
   const toggleProgramLink = useStore(s => s.toggleProgramLink)
   /* A new program is born into the column the admin added it from. */
   const [creating, setCreating] = useState<ProgramStage | null>(null)
@@ -265,9 +290,9 @@ function Programs() {
   /* A program is created right here; its price and listing are a separate job. */
   const newProgram = () => setCreating('specialization')
 
-  /* The programs of this area, and the facts about each one. The map needs
-     the tracks themselves, because a connection is between two of them. */
-  const tracks = useMemo(() => db.tracks.filter(inArea(area)), [db.tracks, area])
+  /* Every program, and the facts about each one. The map needs the tracks
+     themselves, because a connection is between two of them. */
+  const tracks = db.tracks
 
   const rows = useMemo(() => tracks.map(track => {
     const loops = db.loops.filter(l => l.trackId === track.id)
@@ -335,7 +360,7 @@ function Programs() {
             const live = rows.find(r => r.track.id === t.id)!.published
             /* Two different words: what students can open, and whether a
                family is shown it at all. */
-            return area === 'work' || (t.listed ?? true)
+            return (t.listed ?? true)
               ? <Badge tone="teal" dot>{live} live</Badge>
               : <Badge tone="line" dot><EyeOff style={{ width: 11, height: 11 }} />Hidden</Badge>
           }}
@@ -362,20 +387,8 @@ function Courses({ track }: { track: Track }) {
   const [editingProgram, setEditingProgram] = useState(false)
   /* Rename or delete straight from the grid — no need to open the course. */
   const [editingCourse, setEditingCourse] = useState<Loop | null>(null)
-  const updateTrack = useStore(s => s.updateTrack)
-  const toast = useStore(s => s.toast)
-  const area = useArea()
-  const { admin: base, label } = AREA_META[area]
-  /* What the Marketplace sells is what Material holds, so the switch for it
-     is here rather than on another page. Work has no shop. */
-  const listed = track.listed ?? true
-  const shop = area !== 'work'
-  const setListed = (on: boolean) => {
-    updateTrack(track.id, { listed: on })
-    toast(on
-      ? `${track.name} is on the training path`
-      : `${track.name} is hidden — families no longer see it`, on ? 'ok' : 'info')
-  }
+  const base = ADMIN_BASE
+  const label = ADMIN_LABEL
 
   const rows = useMemo(() => db.loops
     .filter(l => l.trackId === track.id)
@@ -398,17 +411,6 @@ function Courses({ track }: { track: Track }) {
         title={rows.length ? 'Pick a course' : 'Add the first course'}
         actions={
           <>
-            {/* On sale or not, decided here: the Marketplace lists what
-                Material holds, and this is the switch that holds one back. */}
-            {shop && (
-              <label className="row g8" style={{ cursor: 'pointer' }}
-                title={listed
-                  ? 'Families see this program on their training path'
-                  : 'Hidden from families — it stays here in Material'}>
-                <Switch on={listed} onChange={setListed} label="Show this program on the families' training path" />
-                <span className="t-sm c-muted">{listed ? 'Shown to families' : 'Hidden'}</span>
-              </label>
-            )}
             <button className="btn" onClick={() => setEditingProgram(true)}><Pencil />Edit program</button>
             <button className="btn primary" onClick={() => setAdding(true)}>
               <Plus />New course
@@ -430,9 +432,13 @@ function Courses({ track }: { track: Track }) {
               key={r.loop.id}
               to={`${base}/${track.id}/${r.loop.id}`}
               cover={
-                <Cover bg={toneCover(track.color, r.loop.id)} icon={BookOpen}
-                  tag={`Course · ${r.loop.code}`} big={String(r.loop.index).padStart(2, '0')}
-                  tail={<Badge tone={LOOP_TONE[r.loop.status]} dot>{r.loop.status}</Badge>} />
+                <Cover bg={toneCover(track.color, r.loop.id)}
+                  icon={courseKind(r.loop) === 'work' ? Hammer : BookOpen}
+                  tag={`${COURSE_KIND_META[courseKind(r.loop)].short} · ${r.loop.code}`}
+                  big={String(r.loop.index).padStart(2, '0')}
+                  tail={r.loop.locked || track.locked
+                    ? <Badge tone="line"><Lock />Locked</Badge>
+                    : <Badge tone={LOOP_TONE[r.loop.status]} dot>{r.loop.status}</Badge>} />
               }
               name={r.loop.name}
               menu={
@@ -616,10 +622,9 @@ export function CourseSessions({ track, loop }: { track: Track; loop: Loop }) {
   /* Renaming a session and giving it a picture both happen on the card. */
   const [renaming, setRenaming] = useState<Session | null>(null)
   const [picturing, setPicturing] = useState<Session | null>(null)
-  const { admin: root, label } = AREA_META[useArea()]
-  const nouns = useNouns()
+  const label = ADMIN_LABEL
 
-  const base = `${root}/${track.id}/${loop.id}`
+  const base = `${ADMIN_BASE}/${track.id}/${loop.id}`
   const sessions = useMemo(
     () => db.sessions.filter(s => s.loopId === loop.id).sort((a, b) => a.order - b.order),
     [db.sessions, loop.id],
@@ -633,15 +638,15 @@ export function CourseSessions({ track, loop }: { track: Track; loop: Loop }) {
   return (
     <div className="page">
       <Crumbs trail={[
-        { label, to: root },
-        { label: track.name, to: `${root}/${track.id}` },
+        { label, to: ADMIN_BASE },
+        { label: track.name, to: `${ADMIN_BASE}/${track.id}` },
         { label: loop.name },
       ]} />
       <PageHeader
         title={loop.name}
         actions={
           <>
-            <button className="btn" onClick={() => setEditing(true)}><Pencil />Edit {nouns.loop}</button>
+            <button className="btn" onClick={() => setEditing(true)}><Pencil />Edit course</button>
             <button className="btn primary" onClick={add}><Plus />New session</button>
           </>
         }
@@ -653,7 +658,7 @@ export function CourseSessions({ track, loop }: { track: Track; loop: Loop }) {
         <div className="card">
           <Empty
             icon={<Video />}
-            title={`No sessions in this ${nouns.loop} yet`}
+            title={`No sessions in this course yet`}
             action={<button className="btn primary" onClick={add}><Plus />Add the first session</button>}
           />
         </div>
@@ -663,6 +668,10 @@ export function CourseSessions({ track, loop }: { track: Track; loop: Loop }) {
             const st = sessionStats(s)
             const gaps = readiness(s)
             const to = `${base}/${s.id}`
+            /* Only the odd one out is badged. A grid where every card says
+               "Teaching" says nothing — the course already did. */
+            const odd = sessionDiffers(s, loop)
+            const kind = sessionKind(s, loop)
 
             return (
               <article key={s.id} className="folder prod-card tree-card">
@@ -672,12 +681,21 @@ export function CourseSessions({ track, loop }: { track: Track; loop: Loop }) {
                 <Link to={to} className="prod-cover-btn" aria-label={`Open ${s.name}`}>
                   <Cover
                     bg={sessionCover(s, track.color)}
-                    icon={s.type === 'live' ? Radio : Video}
-                    tag={s.type === 'live' ? 'Live session' : 'Recorded session'}
+                    icon={odd && kind === 'work' ? Hammer : s.type === 'live' ? Radio : Video}
+                    tag={odd ? SESSION_KIND_META[kind].label : s.type === 'live' ? 'Live session' : 'Recorded session'}
                     big={String(s.order + 1).padStart(2, '0')}
                     caption={s.name || 'Untitled session'}
                     height={140}
-                    tail={<Badge tone={STATUS_META[s.status].tone} dot>{STATUS_META[s.status].label}</Badge>}
+                    tail={
+                      <>
+                        {odd && (
+                          <Badge tone={SESSION_KIND_META[kind].tone}>
+                            {SESSION_KIND_META[kind].short}
+                          </Badge>
+                        )}
+                        <Badge tone={STATUS_META[s.status].tone} dot>{STATUS_META[s.status].label}</Badge>
+                      </>
+                    }
                   />
                 </Link>
 
@@ -802,8 +820,7 @@ export function CourseSessions({ track, loop }: { track: Track; loop: Loop }) {
 export default function Material() {
   const { trackId, loopId } = useParams()
   const db = useStore(s => s.db)
-  const area = useArea()
-  const base = AREA_META[area].admin
+  const base = ADMIN_BASE
 
   const track = db.tracks.find(t => t.id === trackId)
   const loop = db.loops.find(l => l.id === loopId)
@@ -811,11 +828,6 @@ export default function Material() {
   /* A stale deep link falls back to the nearest step that still exists. */
   if (trackId && !track) return <Navigate to={base} replace />
   if (!track) return <Programs />
-  /* A program opened under the other area moves to its own. */
-  if (trackArea(track) !== area) {
-    const own = AREA_META[trackArea(track)].admin
-    return <Navigate to={`${own}/${track.id}${loopId ? `/${loopId}` : ''}`} replace />
-  }
   if (loopId && (!loop || loop.trackId !== track.id)) {
     return <Navigate to={`${base}/${track.id}`} replace />
   }

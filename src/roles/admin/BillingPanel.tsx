@@ -13,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { savePayAccounts, type PayAccountsPatch } from '@/lib/api/payments'
-import { qrUrl, removeQr, saveBilling, uploadQr } from '@/lib/api/billing'
+import { METHOD_FEE_PCT, qrUrl, removeQr, saveBilling, uploadQr } from '@/lib/api/billing'
 import { toMessage } from '@/lib/api/errors'
 import { useStore } from '@/lib/store'
 import { dateTime, money } from '@/lib/format'
@@ -174,6 +174,10 @@ export function PayAccountsCard({ row, onSaved }: {
             </Field>
             <QrBox which="vodafone" path={row.vodafone_qr ?? null} stamp={row.updated_at}
               onChange={setQr('vodafone_qr')} />
+            <p className="t-xs c-muted2" style={{ lineHeight: 1.6 }}>
+              A family paying this way is asked for {METHOD_FEE_PCT.vodafone_cash}% above the
+              price, so what lands once Vodafone has taken its cut is the price itself.
+            </p>
           </div>
         </div>
 

@@ -8,7 +8,6 @@ import {
   PROGRAM_STAGES, PROGRAM_STAGE_META, type ProgramStage, type TabVideos, type Track,
 } from '@/lib/types'
 import { derivedStage } from '@/lib/programs'
-import { AREA_META, areaPatch, useArea } from '@/lib/area'
 import { listsOf, savedLists, ValuesFields } from './ValuesFields'
 import { CoversEditor } from './CoversEditor'
 import { VideoField } from './VideoField'
@@ -38,9 +37,7 @@ export function ProgramForm({ track, stage: startStage, onClose }: {
   const courses = useStore(s => (track ? s.db.loops.filter(l => l.trackId === track.id).length : 0))
   const nav = useNavigate()
   const goBack = useGoBack()
-  /* Opened from Material or from Work — the program belongs to that one. */
-  const area = useArea()
-  const base = AREA_META[area].admin
+  const base = '/admin/material'
 
   const [tab, setTab] = useState<Tab>('about')
   const [name, setName] = useState(track?.name ?? '')
@@ -53,6 +50,7 @@ export function ProgramForm({ track, stage: startStage, onClose }: {
      holds, so a new program is listed from the start and this is how one is
      taken out of sight. Work is not shown to families at all. */
   const [listed, setListed] = useState(track?.listed ?? true)
+  const [locked, setLocked] = useState(track?.locked ?? false)
   /* Empty means "work it out from the path" — the normal answer. */
   const [stage, setStage] = useState<ProgramStage | ''>(track?.stage ?? startStage ?? '')
   const [confirm, setConfirm] = useState(false)
@@ -65,7 +63,8 @@ export function ProgramForm({ track, stage: startStage, onClose }: {
     const patch = {
       name: name.trim() || 'Untitled program',
       overview: overview.trim(),
-      listed: area === 'work' ? false : listed,
+      listed,
+      locked,
       stage: stage || undefined,
       videoUrl: videoUrl.trim() || null,
       tabVideos,
@@ -77,7 +76,7 @@ export function ProgramForm({ track, stage: startStage, onClose }: {
       onClose()
       return
     }
-    const created = createTrack({ ...patch, ...areaPatch(area) })
+    const created = createTrack(patch)
     toast('Program added — now add its first course')
     onClose()
     nav(`${base}/${created.id}`)
@@ -125,9 +124,7 @@ export function ProgramForm({ track, stage: startStage, onClose }: {
                   onChange={e => setName(e.target.value)} />
               </Field>
 
-              {area !== 'work' && (
-                <VideoField label="Introduction video" value={videoUrl} onChange={setVideoUrl} />
-              )}
+              <VideoField label="Introduction video" value={videoUrl} onChange={setVideoUrl} />
 
               <Field label="Where it sits on the path">
                 <select className="sel" value={stage}
@@ -139,15 +136,21 @@ export function ProgramForm({ track, stage: startStage, onClose }: {
                 </select>
               </Field>
 
-              {area !== 'work' && (
-                <label className="pf-switch">
-                  <Switch on={listed} onChange={setListed} label="Show this program on the families' training path" />
-                  <span className="stack g2">
-                    <b className="t-sm">Shown to families</b>
-                    <span className="t-xs c-muted2">{listed ? 'Families can see and enroll' : 'Hidden from families'}</span>
-                  </span>
-                </label>
-              )}
+              <label className="pf-switch">
+                <Switch on={listed} onChange={setListed} label="Open this program to families" />
+                <span className="stack g2">
+                  <b className="t-sm">Open to families</b>
+                  <span className="t-xs c-muted2">{listed ? 'Families can see and enroll' : 'Hidden from families'}</span>
+                </span>
+              </label>
+
+              <label className="pf-switch">
+                <Switch on={!locked} onChange={on => setLocked(!on)} label="Open this program to students" />
+                <span className="stack g2">
+                  <b className="t-sm">Open to students</b>
+                  <span className="t-xs c-muted2">{locked ? 'Locked' : 'Students can open it'}</span>
+                </span>
+              </label>
             </div>
           )}
 

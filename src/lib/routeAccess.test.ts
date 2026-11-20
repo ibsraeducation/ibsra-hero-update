@@ -7,11 +7,16 @@ describe('decide', () => {
     expect(decide('/admin/students', 'student')).toEqual({ allow: false, to: '/student/missions' })
     expect(decide('/student/session/ses_1', 'student')).toEqual({ allow: true })
     expect(decide('/student/missions', 'admin')).toEqual({ allow: false, to: '/admin/material' })
-    expect(decide('/admin/work/trk_1', 'admin')).toEqual({ allow: true })
-    expect(decide('/student/work/trk_1/lop_1', 'student')).toEqual({ allow: true })
-    expect(decide('/student/work', 'admin')).toEqual({ allow: false, to: '/admin/material' })
+    expect(decide('/student/missions/trk_1/lop_1', 'student')).toEqual({ allow: true })
     expect(decide('/student/progress', 'student')).toEqual({ allow: true })
     expect(decide('/student/progress', 'parent')).toEqual({ allow: false, to: '/parent/material' })
+  })
+
+  /* Work stopped being an area of its own: it is a course type inside a
+     program, so the two old roots are nobody's any more. */
+  it('sends the retired Work paths home', () => {
+    expect(decide('/student/work/trk_1/lop_1', 'student')).toEqual({ allow: false, to: '/student/missions' })
+    expect(decide('/admin/work/trk_1', 'admin')).toEqual({ allow: true })
   })
 
   it('holds an admin to the same live pages a family gets when previewing /parent', () => {

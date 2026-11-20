@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Admin · Programs — the rhythm each course runs at, and the intakes
+   Admin ┬╖ Programs ΓÇö the rhythm each course runs at, and the intakes
    running through it.
 
    Two things live here because they answer the same question from either
@@ -7,19 +7,19 @@
    not the family's: a family picks which days those fall on, and the server
    holds the enrolment form to the number (`loops.lectures_per_week`, read
    by `check_plan`). And a batch is the group of students who started that
-   course together — the unit the place is actually run in, and what the
+   course together ΓÇö the unit the place is actually run in, and what the
    calendar slices by.
 
    Everything else about a program or a course is edited in Material, where
    it is made. This page is only the two operational numbers.
    ========================================================================== */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, Clock, Layers, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Confirm, Empty, Field, Modal, Segmented } from '@/components/ui'
 import { useStore } from '@/lib/store'
-import { deleteBatch, fetchBatches, saveBatch } from '@/lib/api/schedule'
+import { deleteBatch, saveBatch } from '@/lib/api/schedule'
 import { toMessage } from '@/lib/api/errors'
 import { ANYWHERE, REGIONS, regionLabel } from '@/lib/region'
 import type { CourseBatchRow } from '@/lib/api/rows'
@@ -62,7 +62,7 @@ function BatchForm({ loopId, batch, onClose, onSaved }: {
 
   return (
     <Modal open onClose={onClose} title={batch ? 'Edit batch' : 'New batch'}
-      description="A batch is the students who start this course together — what the calendar slices by."
+      description="A batch is the students who start this course together ΓÇö what the calendar slices by."
       footer={
         <>
           <span className="grow" />
@@ -107,20 +107,13 @@ export default function AdminPrograms() {
   const loops = useStore(s => s.db.loops)
   const updateLoop = useStore(s => s.updateLoop)
   const toast = useStore(s => s.toast)
+  const batches = useStore(s => s.batches)
+  const reloadBatches = useStore(s => s.reloadBatches)
 
-  const [batches, setBatches] = useState<CourseBatchRow[]>([])
   const [editing, setEditing] = useState<{ loopId: string; batch: CourseBatchRow | null } | null>(null)
   const [removing, setRemoving] = useState<CourseBatchRow | null>(null)
 
-  const load = useCallback(async () => {
-    try { setBatches(await fetchBatches()) } catch { /* the rhythm is still editable without them */ }
-  }, [])
-  useEffect(() => { void load() }, [load])
-
-  const material = useMemo(
-    () => tracks.filter(t => (t.area ?? 'material') !== 'work'),
-    [tracks],
-  )
+  useEffect(() => { void reloadBatches() }, [reloadBatches])
 
   const coursesOf = useCallback(
     (trackId: string) => loops.filter(l => l.trackId === trackId).sort((a, b) => a.index - b.index),
@@ -129,20 +122,20 @@ export default function AdminPrograms() {
 
   const setRhythm = (loopId: string, name: string, n: number) => {
     updateLoop(loopId, { lecturesPerWeek: n })
-    toast(`${name} — ${n === 1 ? 'one lecture' : 'two lectures'} a week`)
+    toast(`${name} ΓÇö ${n === 1 ? 'one lecture' : 'two lectures'} a week`)
   }
 
   return (
     <div className="page">
       <PageHeader title="Programs" />
 
-      {material.length === 0 ? (
+      {tracks.length === 0 ? (
         <div className="card">
           <Empty icon={<SlidersHorizontal />} title="No training programs yet" />
         </div>
       ) : (
         <div className="stack g14">
-          {material.map(t => {
+          {tracks.map(t => {
             const courses = coursesOf(t.id)
             return (
               <div key={t.id} className="card">
@@ -158,10 +151,10 @@ export default function AdminPrograms() {
                         style={{ paddingBottom: 10, borderBottom: '1px solid var(--line)' }}>
                         <div className="row g14 wrap" style={{ justifyContent: 'space-between' }}>
                           <div className="stack g2" style={{ minWidth: 0 }}>
-                            <span className="t-sm w-sb truncate">Course {c.index} · {c.name}</span>
+                            <span className="t-sm w-sb truncate">Course {c.index} ┬╖ {c.name}</span>
                             <span className="t-xs c-muted2">
                               {lectures === 1 ? 'One lecture' : 'Two lectures'} a week
-                              {' · a section every other day'}
+                              {' ┬╖ a section every other day'}
                             </span>
                           </div>
                           <Segmented
@@ -189,7 +182,7 @@ export default function AdminPrograms() {
                                 {b.name}
                               </button>
                               <span className="c-muted2">
-                                · {regionLabel(b.region)} · {b.status} · {b.seats} seats · from {b.starts_on}
+                                ┬╖ {regionLabel(b.region)} ┬╖ {b.status} ┬╖ {b.seats} seats ┬╖ from {b.starts_on}
                               </span>
                               <button className="btn ghost icon sm" style={{ color: 'var(--rose-600)' }}
                                 onClick={() => setRemoving(b)} aria-label={`Delete ${b.name}`}>
@@ -213,7 +206,7 @@ export default function AdminPrograms() {
       )}
 
       <p className="t-xs c-muted2 mt16" style={{ maxWidth: 640, lineHeight: 1.6 }}>
-        The times themselves are published on <b>Calendar</b> — on the Weekly availability tab, or
+        The times themselves are published on <b>Calendar</b> ΓÇö on the Weekly availability tab, or
         straight onto a day with the <b>+</b> on the calendar grid. A course with no lecture window
         open cannot be enrolled in with a time; the family can still ask, and you offer them one
         when you answer.
@@ -221,14 +214,15 @@ export default function AdminPrograms() {
 
       {editing && (
         <BatchForm loopId={editing.loopId} batch={editing.batch}
-          onClose={() => setEditing(null)} onSaved={() => void load()} />
+          onClose={() => setEditing(null)} onSaved={() => void reloadBatches()} />
       )}
       {removing && (
         <Confirm open onClose={() => setRemoving(null)}
-          onConfirm={() => { void deleteBatch(removing.id).then(() => void load()) }}
+          onConfirm={() => { void deleteBatch(removing.id).then(() => void reloadBatches()) }}
           title={`Delete ${removing.name}?`}
-          body="Sittings booked into it keep their times and fall back to “no batch”." />
+          body="Sittings booked into it keep their times and fall back to ΓÇ£no batchΓÇ¥." />
       )}
     </div>
   )
 }
+

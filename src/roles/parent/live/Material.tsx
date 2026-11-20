@@ -30,6 +30,7 @@ import { ProgramOutcomes } from '@/components/ProgramOutcomes'
 import { ProgramPicker } from '@/components/ProgramPicker'
 import { hasProgramInfo } from '@/lib/programInfo'
 import type { Loop, Session, Track } from '@/lib/types'
+import { PromoRedeem } from './PromoRedeem'
 import { ChildPicker } from './ChildPicker'
 import { EnrollDialog } from '@/roles/marketplace/live/EnrollDialog'
 import { released } from './feedbackModel'
@@ -311,7 +312,7 @@ export function ParentMaterial() {
 
   return (
     <div className="page">
-      <PageHeader title="Material" />
+      <PageHeader title="Material" actions={child && (<PromoRedeem studentId={child.profile.id} heroName={first} onDone={reload} />)} />
 
       <ChildPicker kids={children} child={child} onPick={pick} />
 
@@ -366,35 +367,41 @@ export function ParentMaterial() {
             sub={hasProgramInfo(track) ? undefined : track.blurb} />
           <ProgramOutcomes track={track} />
           <div className="folder-grid">
-            {courses.map(l => {
-              const ss = sessionsOf(l.id)
-              const open = ss.filter(released)
-              const mine = enrolled.has(l.id)
-              return (
-                <FolderCard
-                  key={l.id}
-                  onOpen={mine ? () => setAt({ trackId: track.id, loopId: l.id }) : undefined}
-                  locked={!mine}
-                  cover={
-                    <Cover bg={toneCover(track.color, l.id)} icon={BookOpen} dim={!mine}
-                      tag={`Course · ${l.code}`} big={String(l.index).padStart(2, '0')}
-                      tail={!mine
-                        ? <Badge tone="line"><Lock />Not paid for</Badge>
-                        : open.length > 0 && loopPct(ss, view.done) === 100
-                          ? <Badge tone="teal"><CheckCircle2 />Done</Badge>
-                          : <Badge tone="brand">Enrolled</Badge>} />
-                  }
-                  eyebrow={mine ? 'Enrolled' : 'Comes later'}
-                  name={l.name}
-                  blurb={`${date(l.startDate)} – ${date(l.endDate)} · ${l.code}`}
-                  meter={mine ? loopPct(ss, view.done) : undefined}
-                  facts={[
-                    `${open.length} of ${ss.length} session${ss.length === 1 ? '' : 's'} open`,
-                    `${mins(open.reduce((a, s) => a + sessionMinutes(s), 0))} of content`,
-                  ]}
-                />
-              )
-            })}
+            {(() => {
+              const enrolledIndices = courses.filter(l => enrolled.has(l.id)).map(l => l.index)
+              const activeIndex = enrolledIndices.length > 0 ? Math.max(...enrolledIndices) : 1
+              return courses.map(l => {
+                const ss = sessionsOf(l.id)
+                const open = ss.filter(released)
+                const mine = enrolled.has(l.id)
+                const isNextInOrder = l.index > activeIndex
+                const locked = !mine || isNextInOrder || !(l.listed ?? true) || !(track.listed ?? true)
+                return (
+                  <FolderCard
+                    key={l.id}
+                    onOpen={!locked ? () => setAt({ trackId: track.id, loopId: l.id }) : undefined}
+                    locked={locked}
+                    cover={
+                      <Cover bg={toneCover(track.color, l.id)} icon={BookOpen} dim={locked}
+                        tag={`Course · ${l.code}`} big={String(l.index).padStart(2, '0')}
+                        tail={locked
+                          ? <Badge tone="line"><Lock />Locked</Badge>
+                          : open.length > 0 && loopPct(ss, view.done) === 100
+                            ? <Badge tone="teal"><CheckCircle2 />Done</Badge>
+                            : <Badge tone="brand">Enrolled</Badge>} />
+                    }
+                    eyebrow={locked ? 'Locked · comes next' : mine ? 'Enrolled' : 'Comes later'}
+                    name={l.name}
+                    blurb={`${date(l.startDate)} – ${date(l.endDate)} · ${l.code}`}
+                    meter={!locked && mine ? loopPct(ss, view.done) : undefined}
+                    facts={[
+                      `${open.length} of ${ss.length} session${ss.length === 1 ? '' : 's'} open`,
+                      `${mins(open.reduce((a, s) => a + sessionMinutes(s), 0))} of content`,
+                    ]}
+                  />
+                )
+              })
+            })()}
           </div>
         </>
       ) : (

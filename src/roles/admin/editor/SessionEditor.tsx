@@ -11,7 +11,6 @@ import {
 } from '@/components/ui'
 import { mins, relative } from '@/lib/format'
 import { STATUS_META, TITLE_KIND_META, titleKind, titleLabel, type StepKind } from '@/lib/types'
-import { AREA_META, trackArea, useArea } from '@/lib/area'
 import { TitleRail } from './TitleRail'
 import { SessionSettings } from './SessionSettings'
 import { VideoPanel } from './VideoPanel'
@@ -68,13 +67,12 @@ export default function SessionEditor() {
     if (titleId && session && !session.titles.some(t => t.id === titleId)) setTitleId('')
   }, [session, titleId])
 
-  /* Every way out of the editor goes back up the Material (or Work) steps.
-     When the session is real its own loop/track/area win, so a stale URL
-     still lands right. */
-  const urlArea = useArea()
+  /* Every way out of the editor goes back up the Material steps. When the
+     session is real its own loop and track win, so a stale URL still lands
+     right. */
+  const root = '/admin/material'
   const loop = db.loops.find(l => l.id === (session ? session.loopId : loopId))
   const track = db.tracks.find(t => t.id === (loop ? loop.trackId : trackId))
-  const root = AREA_META[track ? trackArea(track) : urlArea].admin
   const backTo = loop && track ? `${root}/${track.id}/${loop.id}` : root
 
   if (!session) {

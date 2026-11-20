@@ -9,6 +9,7 @@
    ========================================================================== */
 
 import type { Loop, Material, Option, Session, Task, Title, Track, ValueLists, VideoAsset, VideoCheck } from '@/lib/types'
+import { courseKind } from '@/lib/types'
 import { programBlurb } from '@/lib/programInfo'
 import type { LoopRow, SessionKeys, SessionRow, TrackRow, UpcomingSessionRow } from './rows'
 
@@ -30,11 +31,11 @@ export const trackToRow = (t: Track): TrackRow => ({
   /* Unset means listed: a program saved before the flag existed was on sale,
      and staying on sale is the answer that changes nothing. */
   listed: t.listed ?? true,
+  locked: t.locked ?? false,
   stage: t.stage ?? null,
   next_ids: t.nextIds ?? [],
   video_url: t.videoUrl ?? null,
   tab_videos: t.tabVideos ?? {},
-  ...(t.area === 'work' ? { area: 'work' as const } : {}),
 })
 
 /* The database has no skill, tier, colour or description any more; the demo
@@ -44,7 +45,6 @@ export const trackFromRow = (r: TrackRow): Track => {
     id: r.id,
     name: r.name,
     overview: r.overview ?? '',
-    ...(r.area === 'work' ? { area: 'work' as const } : {}),
     technical: r.technical_values ?? '',
     personal: r.personal_values ?? '',
     market: r.market_values ?? '',
@@ -55,6 +55,7 @@ export const trackFromRow = (r: TrackRow): Track => {
     skills: r.skills ?? [],
     priceEgp: r.price_egp ?? null,
     listed: r.listed ?? true,
+    locked: r.locked ?? false,
     ...(r.stage ? { stage: r.stage } : {}),
     nextIds: r.next_ids ?? [],
     videoUrl: r.video_url ?? null,
@@ -104,6 +105,9 @@ export const loopToRow = (l: Loop): LoopRow => ({
   code: l.code,
   name: l.name,
   idx: Math.max(1, Math.round(l.index)),
+  /* Unset reads as training: every course saved before Work stopped being an
+     area of its own was one. */
+  kind: courseKind(l),
   /* Unset reads as one: a course saved before the weekly rhythm existed met
      once a week, and one lecture is the answer that changes nothing. */
   lectures_per_week: l.lecturesPerWeek ?? 1,
@@ -112,6 +116,7 @@ export const loopToRow = (l: Loop): LoopRow => ({
   end_date: l.endDate,
   status: l.status,
   listed: l.listed ?? true,
+  locked: l.locked ?? false,
   price_egp: l.priceEgp ?? null,
   overview: l.overview ?? '',
   video_url: l.videoUrl ?? null,
@@ -125,12 +130,14 @@ export const loopFromRow = (r: LoopRow): Loop => ({
   trackId: r.track_id,
   name: r.name,
   index: r.idx,
+  kind: courseKind(r),
   lecturesPerWeek: r.lectures_per_week ?? 1,
   durationHours: r.duration_hours ?? null,
   startDate: r.start_date,
   endDate: r.end_date,
   status: r.status,
   listed: r.listed ?? true,
+  locked: r.locked ?? false,
   priceEgp: r.price_egp ?? null,
   overview: r.overview ?? '',
   videoUrl: r.video_url ?? null,
@@ -192,6 +199,10 @@ export function sessionToPayload(s: Session): SessionPayload {
       duration_min: Math.max(0, Math.round(s.durationMin || 0)),
       meeting_url: s.meetingUrl ?? null,
       recording_ready: !!s.recordingReady,
+      /* Null is a session that follows its course, which is not the same as
+         a session that picked its course's kind by hand — only the second
+         survives the course changing. */
+      kind: s.kind ?? null,
       content: { titles, flowOrder: s.flowOrder ?? null },
       ...listsToRow(s),
       video_url: s.videoUrl ?? null,
@@ -254,6 +265,9 @@ export function sessionFromRow(r: SessionRow, keys?: SessionKeys): Session {
     durationMin: r.duration_min,
     ...(r.meeting_url ? { meetingUrl: r.meeting_url } : {}),
     recordingReady: r.recording_ready,
+    /* Left off entirely when the row says nothing, so `kind` stays absent
+       and the session goes on reading as its course. */
+    ...(r.kind ? { kind: r.kind } : {}),
     videoUrl: r.video_url ?? null,
     ...listsFromRow(r),
     titles: asArray<StoredTitle>(content.titles).map(t => titleFromStored(t, keys)),

@@ -13,6 +13,7 @@
    ========================================================================== */
 
 import { useRef, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { Field } from '@/components/ui'
 import { ProgramTabs } from '@/components/ProgramTabs'
 import { cleanList, listText, PROGRAM_LISTS, skillsFromLists, type ListKey } from '@/lib/programInfo'
@@ -91,29 +92,38 @@ export function ValuesFields({
     counts[l.key] = hit.n
   }
 
+  const clear = () => onChange({ ...lists, [current.key]: '' })
+
+  /* The same layout as "What it covers": the tab bar, a head row with the
+     tab's name and a Clear, the video, then the bullets beside their
+     example. The seven tabs are fixed, so the name is shown, not typed. */
   return (
-    <div className={`field${fill ? ' pf-fill' : ''}`}>
+    <div className="cv">
       {label && <label className="label">{label}</label>}
       <ProgramTabs value={tab} onChange={setTab} counts={counts} />
-      {/* The video a family watches while this tab is open; empty falls back
-          to the program's own introduction video. */}
-      {onVideosChange && (
-        <div className="mt12">
-          <VideoField label="Video for this tab"
-            value={videos[current.key] ?? ''}
-            onChange={v => onVideosChange({ ...videos, [current.key]: v })} />
-        </div>
-      )}
-      <div className="mt8">
-        <OutlineEditor
-          key={current.key}
-          label={current.tab}
-          placeholder={current.placeholder}
-          value={lists[current.key]}
-          onChange={md => onChange({ ...lists, [current.key]: md })}
-          fill={fill}
-        />
+
+      <div className="cv-head">
+        <span className="t-md w-sb">{current.tab}</span>
+        <button type="button" className="btn sm ghost" style={{ color: 'var(--rose-600)' }}
+          title="Clear this tab" onClick={clear}>
+          <Trash2 />Clear
+        </button>
       </div>
+
+      {onVideosChange && (
+        <VideoField label="Video for this tab"
+          value={videos[current.key] ?? ''}
+          onChange={v => onVideosChange({ ...videos, [current.key]: v })} />
+      )}
+
+      <OutlineEditor
+        fill={fill}
+        key={current.key}
+        label={current.tab}
+        placeholder={current.placeholder}
+        value={lists[current.key]}
+        onChange={md => onChange({ ...lists, [current.key]: md })}
+      />
     </div>
   )
 }

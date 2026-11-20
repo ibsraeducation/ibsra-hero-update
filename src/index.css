@@ -776,8 +776,56 @@ button.mat-row:hover { background: var(--surface-2); }
 }
 .folder:hover { transform: translateY(-2px); box-shadow: var(--sh-2); border-color: var(--line-hard); }
 .folder:focus-visible { outline: none; box-shadow: var(--ring); }
-.folder[data-locked="true"] { opacity: .55; box-shadow: none; }
+.folder[data-locked="true"] {
+  cursor: not-allowed;
+  box-shadow: none;
+  border-color: var(--line);
+}
 .folder[data-locked="true"]:hover { transform: none; box-shadow: none; border-color: var(--line); }
+.folder[data-locked="true"] .folder-cover {
+  filter: blur(3px) grayscale(30%);
+  opacity: 0.65;
+}
+.folder[data-locked="true"] .folder-cover .badge,
+.folder[data-locked="true"] .folder-cover .cover-tail,
+.folder[data-locked="true"] .cover-big {
+  filter: none !important;
+  opacity: 1 !important;
+}
+.folder[data-locked="true"] .clamp2,
+.folder[data-locked="true"] .meter,
+.folder[data-locked="true"] .row.g12,
+.folder[data-locked="true"] .eyebrow {
+  filter: blur(2px);
+  opacity: 0.55;
+}
+.folder[data-locked="true"] .folder-body .t-md {
+  filter: none !important;
+  opacity: 1 !important;
+  color: var(--ink);
+  font-weight: 600;
+  position: relative;
+  z-index: 2;
+}
+
+.course-locked-card {
+  position: relative;
+  cursor: not-allowed;
+  user-select: none;
+  opacity: 0.75;
+}
+.course-locked-card summary {
+  cursor: not-allowed !important;
+}
+.course-locked-card .card-body {
+  filter: blur(3px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.course-locked-card .t-md {
+  filter: none !important;
+  opacity: 1 !important;
+}
 
 /* the tab across the top is what makes it read as a folder */
 .folder-tab {
@@ -2042,15 +2090,28 @@ button.mat-row:hover { background: var(--surface-2); }
 /* ---- FoldCard: a card that folds shut on its heading ---- */
 .fold-head {
   display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 14px 18px; background: none; border: 0; cursor: pointer;
+  padding: 10px 18px; background: none; border: 0;
   text-align: start; color: inherit; font: inherit; border-radius: inherit;
 }
-.fold-head:hover { background: var(--surface-2); }
-.fold-head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.fold-head-main {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+  background: none; border: 0; cursor: pointer; text-align: start;
+  color: inherit; font: inherit; padding: 4px 0; border-radius: var(--r-sm);
+}
+.fold-head-main:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.fold-actions {
+  display: flex; align-items: center; gap: 6px; flex: none;
+}
+.fold-chev-btn {
+  background: none; border: 0; cursor: pointer; padding: 4px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); color: var(--muted-2);
+}
+.fold-chev-btn:hover { background: var(--surface-2); }
 .fold-chev { width: 16px; height: 16px; flex: none; color: var(--muted-2); transition: transform var(--fast); transform: rotate(-90deg); }
 /* Direct children only: a fold nested in a fold has its own chevron and its
    own heading rule, and the outer one being open says nothing about them. */
-.fold[data-open] > .fold-head > .fold-chev { transform: none; }
+.fold[data-open] > .fold-head .fold-chev { transform: none; }
 .fold[data-open] > .fold-head { border-bottom: 1px solid var(--line-soft); border-end-start-radius: 0; border-end-end-radius: 0; }
 .fold-body { padding-top: 14px; }
 .fold-body.flush { padding: 0; }

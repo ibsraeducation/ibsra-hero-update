@@ -1,7 +1,7 @@
 /* ==========================================================================
    Which signed-in role may open which path. Pure, so it is tested on its own.
 
-   Admin works in /admin. A student has Missions, Work, the session view and
+   Admin works in /admin. A student has Missions, the session view and
    their own progress page; the other student pages still show demo
    records, so they send a student back to Missions.
 
@@ -57,7 +57,7 @@ export function decide(pathname: string, role: AppRole): Decision {
     }
     return go(HOME.student)
   }
-  if (under(path, '/student/missions') || under(path, '/student/work')
+  if (under(path, '/student/missions')
     || under(path, '/student/session') || under(path, '/student/progress')
     || under(path, '/student/marketplace') || under(path, '/student/calendar')
     || under(path, '/student/wallet')) {

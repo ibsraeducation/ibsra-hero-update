@@ -119,16 +119,6 @@ describe('checkpoint questions', () => {
 })
 
 describe('tracks', () => {
-  it('keeps a Work program in Work, and never sends the area for a Material one', () => {
-    const base = { id: 'trk_1abc', name: 'P', skill: '', tier: 'T2', color: 'brand', blurb: '' } as const
-    const work = trackToRow({ ...base, area: 'work' })
-    expect(work.area).toBe('work')
-    expect(trackFromRow(work).area).toBe('work')
-    const material = trackToRow(base)
-    expect('area' in material).toBe(false)
-    expect(trackFromRow({ ...material, area: 'material' }).area).toBeUndefined()
-  })
-
   it('reads a program saved before the Marketplace switch existed as listed', () => {
     const base = { id: 'trk_1abc', name: 'P', skill: '', tier: 'T2', color: 'brand', blurb: '' } as const
     /* Nothing said, so nothing changes: it was on sale and it stays on sale. */
@@ -165,6 +155,42 @@ describe('loops', () => {
     expect(sold.priceEgp).toBe(4500)
     expect(loopToRow(sold).price_egp).toBe(4500)
     expect(loopToRow({ ...sold, listed: false, priceEgp: null }).price_egp).toBeNull()
+  })
+
+  it('reads a course saved before the kind existed as a training course', () => {
+    const row = {
+      id: 'lp_1abc', track_id: 'trk_1abc', code: 'VID-L1', name: 'Course 1', idx: 1,
+      start_date: '2026-09-01T09:00:00.000Z', end_date: '2026-11-01T09:00:00.000Z',
+      status: 'running' as const,
+    }
+    expect(loopFromRow(row).kind).toBe('training')
+    expect(loopToRow(loopFromRow(row)).kind).toBe('training')
+
+    const work = loopFromRow({ ...row, kind: 'work' })
+    expect(work.kind).toBe('work')
+    expect(loopToRow(work).kind).toBe('work')
+  })
+})
+
+/* "Follow the course" has to survive the round trip as nothing at all — a
+   session that comes back saying 'teaching' would stop following. */
+describe('a session that disagrees with its course', () => {
+  it('sends null for a session that follows its course', () => {
+    expect(sessionToPayload(session).row.kind).toBeNull()
+  })
+
+  it('sends the kind a session set for itself', () => {
+    expect(sessionToPayload({ ...session, kind: 'work' }).row.kind).toBe('work')
+  })
+
+  it('leaves kind off a session whose row says nothing', () => {
+    const { row } = sessionToPayload(session)
+    expect('kind' in sessionFromRow(row)).toBe(false)
+  })
+
+  it('reads a kind back when the row carries one', () => {
+    const { row } = sessionToPayload({ ...session, kind: 'work' })
+    expect(sessionFromRow(row).kind).toBe('work')
   })
 })
 

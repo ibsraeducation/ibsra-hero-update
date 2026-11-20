@@ -1,5 +1,5 @@
 import {
-  CalendarDays, ClipboardList, Hammer, Library, LineChart, MessageSquare, Receipt,
+  CalendarDays, ClipboardList, Library, LineChart, MessageSquare, Receipt,
   ShieldCheck, Sparkles, Store, Target, Users, Users2, Waypoints,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -69,9 +69,10 @@ export const NAV: Record<ViewRole, NavGroup[]> = {
   admin: [
     {
       items: [
+        /* Work used to sit beside this as a second area of its own. It is a
+           course type now — a program holds training courses and work
+           courses together, so there is one door into the content. */
         { to: '/admin/material', label: 'Material', icon: Library },
-        /* Same pages as Material, for the sessions where the student works on their assets. */
-        { to: '/admin/work', label: 'Work', icon: Hammer },
         /* Students and Payments are one page with tabs: the accounts, the
            answers to grade, the transfers to check and the payment settings.
            The badge is everything waiting on it. */
@@ -90,8 +91,8 @@ export const NAV: Record<ViewRole, NavGroup[]> = {
   student: [
     {
       items: [
+        /* Every course they are in, training and work alike. */
         { to: '/student/missions', label: 'Missions', icon: Target },
-        { to: '/student/work', label: 'Work', icon: Hammer },
         /* When they actually sit: the lectures and sections their parent
            picked. Read-only -- the times are not theirs to move. */
         { to: '/student/calendar', label: 'Calendar', icon: CalendarDays },

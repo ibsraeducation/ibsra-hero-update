@@ -11,14 +11,12 @@ const db = {
   tracks: [
     { id: 'trk_a', name: 'Robotics' },
     { id: 'trk_b', name: 'Discovery' },
-    { id: 'trk_w', name: 'Staff training', area: 'work' },
     { id: 'trk_x', name: 'Unlisted', listed: false },
   ],
   loops: [
     { id: 'lp_1', trackId: 'trk_a', name: 'Loop 1', index: 1 },
     { id: 'lp_2', trackId: 'trk_a', name: 'Loop 2', index: 2 },
     { id: 'lp_3', trackId: 'trk_b', name: 'Loop 1', index: 1 },
-    { id: 'lp_w', trackId: 'trk_w', name: 'Internal', index: 1 },
     { id: 'lp_x', trackId: 'trk_x', name: 'Hidden', index: 1 },
   ],
 } as unknown as DB
@@ -91,7 +89,7 @@ describe('timeGaps', () => {
     expect(timeGaps(db, both('lp_1')).map(g => g.loopId)).toEqual(['lp_2', 'lp_3'])
   })
 
-  it('leaves work programs and unlisted ones alone', () => {
+  it('leaves an unlisted program alone', () => {
     expect(timeGaps(db, covered).map(g => g.loopId)).toEqual([])
     expect(timeGaps(db, []).map(g => g.loopId)).toEqual(['lp_1', 'lp_2', 'lp_3'])
   })

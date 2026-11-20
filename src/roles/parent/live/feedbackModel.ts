@@ -18,8 +18,8 @@
    ========================================================================== */
 
 import { sessionFlow } from '@/lib/store'
-import { titleKind, titleState } from '@/lib/types'
-import type { Loop, ProjectState, Session } from '@/lib/types'
+import { sessionKind, titleKind, titleState } from '@/lib/types'
+import type { Loop, ProjectState, Session, SessionKind } from '@/lib/types'
 import type { SubmissionRow } from '@/lib/api/rows'
 
 export type Done = Record<string, string[]>
@@ -29,7 +29,7 @@ export type Attendance = 'attended' | 'missed' | 'upcoming'
 export interface SessionMark {
   sessionId: string
   name: string
-  /** "S1", "S2" — the label under the bars. */
+  /** "Session 1", "Session 2" — the label under the bars. */
   short: string
   loopName: string
   live: boolean
@@ -78,7 +78,7 @@ export function markSession(s: Session, loopName: string, order: number, done: D
   return {
     sessionId: s.id,
     name: s.name,
-    short: `S${order}`,
+    short: `Session ${order}`,
     loopName,
     live: s.type === 'live',
     when: s.scheduledAt ?? null,
@@ -113,6 +113,10 @@ export interface ProjectMark {
   sessionId: string
   sessionName: string
   loopName: string
+  /** Which kind of session it sits in — a training project, or a production
+   *  project in a work session. Read through `sessionKind`, so a session
+   *  that never set one reads as its course. */
+  kind: SessionKind
   /** 0–100 of its own steps. */
   progress: number
   state: ProjectState
@@ -129,6 +133,7 @@ export function markProjects(
 
   const out: ProjectMark[] = []
   for (const s of sorted) {
+    const loop = loops.find(l => l.id === s.loopId)
     const steps = sessionFlow(s)
     const hit = done[s.id] ?? []
     for (const t of s.titles) {
@@ -141,7 +146,8 @@ export function markProjects(
         name: t.name || 'Untitled project',
         sessionId: s.id,
         sessionName: s.name,
-        loopName: loops.find(l => l.id === s.loopId)?.name ?? '',
+        loopName: loop?.name ?? '',
+        kind: sessionKind(s, loop),
         progress,
         state: titleState(t),
       })

@@ -1223,3 +1223,343 @@ count the second one.
 - **Admin → Calendar** gains an *Attendance* reading beside Calendar and Timetable: the meeting link for each sitting, editable in place, and Present / Absent once it has finished.
 - **Student and parent → Calendar** show a *Join the class* card while a sitting is open. It calls `join_booking`, so turning up is recorded by the act of going in.
 - **Projects are a board now, and the mentor owns the columns.** A `Title` carries `state` — `done` / `building` / `soon` — set from the group menu in the session editor beside *Make it a project*. It was derived from ticked steps before, which meant nobody could say a project was finished; it rides in `sessions.content`, so there was no schema change. Every hero on that course reads the same column, because the state is on the project, not on the hero. The bar inside each card is still the hero's own progress.
+
+## Work is a course type, not an area (written 2026-09-29, **not applied** — superseded below)
+
+> **Correction, 2026-10-02.** This section was filed as applied and was not:
+> on 2026-10-02 the live database still had no `loops.kind` and still had
+> `tracks.area`. `loopToRow` had already started sending `kind`, so saving a
+> course from the admin was failing against the real backend the whole time.
+> Steps A and B below are folded into the migration in the next section,
+> which is the one to run.
+
+
+Work was the other half of the CMS: its own programs (`tracks.area = 'work'`),
+its own words — project → milestone → sessions — its own rail entry in the
+admin and in the student, and its own three routes under `/admin/work` and
+`/student/work`. It ran on Material's pages and shared none of its data.
+
+That seam was on the wrong thing. Whether a course teaches or produces is a
+property of the course, not of half the product. So it is one flag on a
+course now: a program holds training courses and work courses side by side,
+and `tracks.area` goes.
+
+| object | change |
+|---|---|
+| `public.loops.kind` | new `text not null default 'training'`, check `kind in ('training','work')`. Unset is training — every course saved before the two types existed is one |
+| data | every course of a `tracks.area = 'work'` program is now `kind = 'work'` |
+| data | those programs and their courses are `listed = false`. **This one is load-bearing.** They were invisible to families only because the code tested `area`; the old Work page created a project through its own form, which never passed `listed`, so `createTrack`'s `listed: true` default stood. Taking the `area` tests out without this would have put every one of them in the shop window |
+| `public.catalogue_sessions` | recreated without `coalesce(t.area,'material') <> 'work'`, and with `coalesce(l.listed, true)` added — the course's own switch is the guard now |
+| `public.pay_from_wallet` | recreated with the same test dropped from the course branch and the program branch |
+| `public.tracks.area` | dropped, **after** the two functions above stopped reading it |
+
+### Step A — before the client ships
+
+`loopToRow` sends `kind` on every course save, so the column has to exist
+first.
+
+```sql
+alter table public.loops
+  add column kind text not null default 'training'
+    constraint loops_kind_valid check (kind in ('training', 'work'));
+
+comment on column public.loops.kind is
+  'What the course is for: a training course, or a work course where the '
+  'student builds an asset of their own. Default training — every course '
+  'saved before the two types existed is one.';
+
+-- every course of a Work program becomes a work course
+update public.loops l
+   set kind = 'work'
+  from public.tracks t
+ where t.id = l.track_id
+   and coalesce(t.area, 'material') = 'work';
+
+-- and the row now says what the area test used to say for it
+update public.tracks
+   set listed = false
+ where coalesce(area, 'material') = 'work';
+
+update public.loops l
+   set listed = false
+  from public.tracks t
+ where t.id = l.track_id
+   and coalesce(t.area, 'material') = 'work';
+```
+
+Worth reading back before and after:
+
+```sql
+select coalesce(t.area,'material') as area, l.kind, l.listed, count(*)
+  from public.loops l join public.tracks t on t.id = l.track_id
+ group by 1,2,3 order by 1,2,3;
+```
+
+### Step B — after the client ships
+
+Neither function is dependency-tracked (one is `language sql` with a string
+body, the other plpgsql), so `drop column` would succeed and leave both
+raising *column t.area does not exist* at call time. Recreate them first.
+
+```sql
+create or replace function public.catalogue_sessions()
+returns table (
+  id text, loop_id text, name text, summary text,
+  type public.session_type, sort_order int, duration_min int, video_url text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select s.id, s.loop_id, s.name, s.summary, s.type, s.sort_order,
+         s.duration_min, s.video_url
+    from public.sessions s
+    join public.loops  l on l.id = s.loop_id
+    join public.tracks t on t.id = l.track_id
+   where s.status = 'published'
+     and coalesce(t.listed, true)
+     and coalesce(l.listed, true)
+$$;
+revoke all on function public.catalogue_sessions() from public, anon;
+grant execute on function public.catalogue_sessions() to authenticated;
+```
+
+In `pay_from_wallet` (recreate the whole function from
+`20260922220100_marketplace_listing_work_guard.sql`, changing only two
+lines):
+
+- the course branch: `l.listed and t.listed and coalesce(t.area, 'material') <> 'work'` → `l.listed and t.listed`
+- the program branch: `t.listed and coalesce(t.area, 'material') <> 'work'` → `t.listed`
+
+Then, and only then:
+
+```sql
+alter table public.tracks drop column area;
+```
+
+No `cascade` — if something still depends on it, that error is the point.
+
+### Client
+
+- **`lib/types.ts`** gains `CourseKind`, `COURSE_KIND_META` and `courseKind(loop)`, the same shape `TitleKind` / `titleKind()` already had beside them. The meta carries the four words each type needs: its own label, the short one for a card, its tone, and **what a project inside it is called** — a *training project* in a training course, a *production project* in a work one. `ContentArea` and `Track.area` are gone.
+- **`lib/area.ts` is deleted**, and with it `AREA_META`, `AREA_NOUNS`, `useArea()`, `useNouns()`, `inArea()`, `areaPatch()` and `trackArea()`. Thirteen files imported it; each keeps what was the Material branch. **`roles/admin/Work.tsx` is deleted** too — its `ProjectForm` was `ProgramForm`, its `Milestones` was Material's `Courses`, and its sessions level already delegated to Material's `CourseSessions`.
+- **Admin → Material → a course**: a *Course type* control on the About tab, two options, Training course / Work course. The course card carries it in its corner chip (*Work · BRD-L2*) and swaps the folder icon, so a program's grid reads at a glance. Every place that filtered Work out — the catalogue, the family's offers and path, the enrol-time gap report, the admin's program grid, the rhythm table and the Marketplace count — now reads the `listed` switch alone, which is what decides.
+- **Admin → Students**: the course select said `Work · <program>` on the program group. The fact belongs to the course now, so it reads `<course> · <code> · Work` on the option.
+- **Both rails lose their Work entry**, and the four `/admin/work` routes and three `/student/work` routes collapse to one redirect each. A student's old deep link lands on Missions; an admin's on Material.
+- **Student → My Progress** and **Parent → a hero's feedback** put a badge on every project naming where it came from — *Training project* or *Production project*. One list, in the order the hero meets them, exactly as before.
+- **The session chart on the family's feedback page** says *Session 1* under each column instead of *S1*. The column widened from 34px to 46px and the label wraps onto two lines, so fourteen of them still fit without the chart scrolling.
+
+## A session can disagree with its course (applied 2026-10-02)
+
+Work stopped being an area and became a property of the course. The seam was
+still one level too high: a course is nine weeks, and somewhere in those nine
+weeks is the build week. So the kind goes on the session as well, and a
+course is hybrid by having both inside it.
+
+The two columns say different words on purpose, because they are answering
+different questions:
+
+| column | values | means |
+|---|---|---|
+| `public.loops.kind` | `training` \| `work`, not null, default `training` | what the course is mostly for |
+| `public.sessions.kind` | `teaching` \| `work` \| **null** | what this one session is for; null is "whatever the course is" |
+
+`sessions.kind` is nullable rather than defaulted, and that is the whole
+design. "Follows the course" and "set to teaching" look identical in a
+training course and part company the moment the course becomes a work
+course — one moves, one does not. Storing the default would have thrown that
+away on the first save.
+
+### The migration
+
+`supabase/migrations/20261002090000_work_is_a_kind.sql`, in one transaction:
+
+- `loops.kind` added, checked, commented — this is Step A of the section
+  above, which never ran.
+- every course of a `tracks.area = 'work'` program becomes `kind = 'work'`,
+  and those programs and courses become `listed = false`. **Load-bearing.**
+  They were invisible to families only because the code tested `area`; the
+  old Work page never passed `listed`, so `createTrack`'s `listed: true`
+  default stood. The next step would otherwise put all of them on sale.
+- `sessions.kind` added, nullable, checked.
+- `admin_save_session` recreated carrying `kind` in both branches. A session
+  is saved through that function, not by upsert, so a new column that is not
+  named there silently saves nothing.
+- `catalogue_sessions` recreated without `coalesce(t.area,'material') <> 'work'`
+  and with `coalesce(l.listed, true)`. It was the last reader of `area` in
+  the database — `pay_from_wallet` lost its copy when subscriptions landed,
+  so the Step B in the section above is half obsolete.
+
+`public.tracks.area` is **not** dropped. Nothing reads it any more, but the
+deployed client still sends it for a Work program, so it goes in a migration
+of its own after this client ships:
+
+```sql
+alter table public.tracks drop column area;
+```
+
+No `cascade` — if something still depends on it, that error is the point.
+
+### Client
+
+- **`lib/types.ts`** gains `SessionKind`, `SESSION_KIND_META`, `SESSION_KINDS`,
+  and three readers: `courseSessionKind(loop)` for what a course's sessions
+  are by default, `sessionKind(session, loop)` for what one actually is, and
+  `sessionDiffers(session, loop)` for whether it was set apart. Nothing reads
+  `session.kind` directly. `COURSE_KIND_META` loses `project` and gains
+  `session`: what a project is called is the session's business now.
+- **Admin → session editor → Settings** gains *What this session is for*,
+  three options: Follow the course / Teaching session / Work session. The
+  hint under it names what "follow" currently resolves to.
+- **Admin → Material → a course**: only the odd one out is badged. A grid
+  where every card says *Teaching* says nothing the course has not already
+  said, so the chip and the hammer icon appear on the session that disagrees
+  and nowhere else.
+- **Student → Missions** reads the resolved kind, not the override: a build
+  week shows a hammer and *Work session* whether that came from the session
+  or from its course.
+- **Student → My Progress** and **Parent → a hero's feedback** name each
+  project after its session rather than its course — `ProjectMark.courseKind`
+  became `ProjectMark.kind`.
+
+## The syllabus workbooks, imported (applied 2026-10-02)
+
+Two workbooks now, because web design was rewritten on its own:
+`IBSRA HEROS - Syllbus.xlsx` holds electronics, robotics and IoT, and
+`HTML_CSS_Syllabus.xlsx` holds web design. Both are read by
+`scripts/import-syllabus.mjs`, which takes as many workbooks as there are
+and writes `supabase/import-syllabus.sql` — nothing was typed in by hand,
+and nothing has to be typed in again when a workbook changes.
+
+- **`scripts/lib/xlsx.mjs`** reads the workbook with Node's standard library
+  alone — it walks the ZIP central directory and inflates the parts it wants.
+  No dependency was added for a one-command import.
+- **`scripts/lib/syllabus.mjs`** is the workbook's grammar, kept apart so it
+  can be tested: `scripts/syllabus.test.mjs` covers all five spellings of a
+  project heading the sheets actually use (`project`, `sub project`,
+  `main project`, `proejct`, and one with no space before the dash), the two
+  unnumbered lines that only look like headings, and the session that teaches
+  `if` conditions between step 3 and step 4 of the same project.
+
+What a row becomes:
+
+| in the workbook | in the editor |
+|---|---|
+| a plain line | a topic, with column E as its summary |
+| `project 2 - …` | a project title; the heading is stripped, since the editor numbers projects itself |
+| `step 0 - aim` | the project's summary — it repeats the project's own line in all 107 places it appears |
+| `step 1…5 - …` | a task on that project: *Show result* asks for a picture, the rest for writing |
+| a step whose cell is only a link | that link as a file on the project, beside the task |
+
+Four courses under **Discovery Education Program**, in order:
+
+| | course | sessions | from |
+|---|---|---|---|
+| DSC-L1 | Web Design Fundamentals (HTML, CSS, Bootstrap & JS) | 12 | `HTML_CSS_Syllabus.xlsx` |
+| DSC-L2 | Microcontroller Fundamentals | 9 | `IBSRA HEROS - Syllbus.xlsx` |
+| DSC-L3 | Robotics Fundamentals (ESP32) | 9 | `IBSRA HEROS - Syllbus.xlsx` |
+| DSC-L4 | IoT Fundamentals (ESP32, Firebase & Vercel) | 12 | `IBSRA HEROS - Syllbus.xlsx` |
+
+42 sessions, 321 topics, 125 projects, 627 steps.
+
+**Web design replaced the nine-session HTML & CSS course.** Its ids are
+derived the same way, so sessions 1–9 were rewritten in place and 10–12
+added. A course that *loses* sessions is handled too: each course ends with
+a delete of the `ses_syl<slug>…` rows the workbook no longer produces. That
+can never take student work with it — `submissions` and `mentor_feedback`
+reference a session `on delete restrict`, so a session somebody has worked
+in raises an error instead of disappearing, which is the right way round.
+
+The four *graduation project* sessions come in as `kind = 'work'`, inside
+training courses — the hybrid the section above is for.
+
+Everything lands as a **draft**. Re-running is safe: every id is derived from
+where the thing sits in the workbook, so a second run updates in place, and
+the `on conflict` clause never touches a session's `status` — bringing new
+wording in must not unpublish what is in front of a class.
+
+### What ran, and what is left
+
+Applied to the live project (`rtutioamxwlihudawhmc`) on 2026-10-02, in this
+order, and read back after each:
+
+1. `20261002090000_work_is_a_kind.sql`. `loops.kind` and `sessions.kind` both
+   present; `admin_save_session` carries `kind`; `catalogue_sessions` no
+   longer reads `area`. *Training Programs Assets* and its Arduino course
+   came out `kind = 'work'`, `listed = false` — the one thing that had to go
+   right, and it did.
+2. `import-syllabus.sql`. 42 sessions, 446 titles (321 topics + 125
+   projects), 627 steps, 2 files — the same numbers the generator reported.
+   Every session `draft`, one `kind = 'work'` per course.
+
+Two of the imported rows were then read back through `sessionFromRow` and
+`sessionFlow`, so what is in the database is known to parse into the domain
+model rather than merely to have been accepted by the column types.
+
+Left to do, deliberately: **`alter table public.tracks drop column area;`**
+once this client is deployed. The column is dead — nothing in the database
+reads it — but the build currently on Vercel still sends it when it saves a
+Work program.
+
+## Every step is a recording, every title is checked (applied 2026-10-02)
+
+The import put the mentor's words in as written: a topic was a heading and a
+paragraph, and a project's steps were short-answer questions. Neither is how
+the sessions are actually run — the steps are demonstrated, and a heading
+with its answer printed underneath is not a check on anything.
+
+So, across all four courses:
+
+| | before | after |
+|---|---|---|
+| a topic | name + explanation, nothing to do | name + explanation + **one question**, whose model answer is that explanation |
+| a project step | a short-answer question | a **recording** of the step, with the question straight after it |
+
+321 topic questions and 627 step recordings, for **948 questions and 627
+recordings** in all.
+
+This is the platform's own rule as much as the syllabus's: `readiness()`
+already refused to publish a topic with no Q&A, so before this every one of
+the 321 was blocking its session.
+
+### Why the steps are materials and not `Title.video`
+
+A `Title` holds one recording. A ten-step project needs ten, so they are
+materials of `kind: 'video'` — which is exactly what that kind was for
+("an extra recording in a topic — the first one lives on the topic itself").
+Two things had to follow:
+
+- **`isClip(material)`** in `lib/types`, true when `kind` *or* `category`
+  says video. The materials panel sets the first, the sequence's step-type
+  dropdown sets the second, and an admin who sets one and not the other
+  meant the same thing both times.
+- **Student → a session** plays a clip where it sits instead of opening it
+  in the workbook beside the video, because a file panel is not a thing you
+  can watch. An empty one says the mentor has not posted it yet rather than
+  showing a broken player, and clips are kept out of the workbook's file
+  rail.
+- **`readiness()`** counts a clip with no link, the way it already counted a
+  live step with no meeting link. Without it a session could go out with ten
+  blank players in it. Every imported session now reports its empty
+  recordings instead of reading as ready.
+
+### Why the sequence is written out
+
+The default order runs a title's materials and then its tasks — which would
+be every recording followed by every question. `flowOrder` is what puts each
+question back beside the step it belongs to: `v:title`, then
+`m:clip`, `t:ask` per step. The title's own `v:` key is listed although
+nothing is recorded there yet: an unknown key is skipped, so it does nothing
+today and puts the video first the day a mentor adds one, instead of letting
+it land after the questions.
+
+### Where the answers live
+
+`content` is what a student may read, and the table refuses a `modelAnswer`
+anywhere inside it. So a topic's explanation goes in twice, deliberately:
+visible as the title's `summary`, and again in `session_keys` as the model
+answer for its question. 284 of the 321 topics have one — the rest are the
+electronics sessions nobody has written against yet.
+
+The import writes `session_keys` itself now, rather than leaving it to
+`admin_save_session`.

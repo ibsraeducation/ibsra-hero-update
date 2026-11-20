@@ -148,11 +148,11 @@ export function useChildView(child: GuardianChild | null): ChildView {
         const trackIds = new Set(
           content.loops.filter(l => mine.has(l.id)).map(l => l.trackId),
         )
-        /* The path shows what a family can enrol in — listed training
-           programs, not the admin's work area or a hidden draft — plus
-           anything this child is already on, whatever its switch says. */
+        /* The path shows what a family can enrol in — a listed program, never
+           a hidden draft — plus anything this child is already on, whatever
+           its switch says. */
         const allTracks = content.tracks.filter(t =>
-          trackIds.has(t.id) || (t.area !== 'work' && (t.listed ?? true)))
+          trackIds.has(t.id) || (t.listed ?? true))
         const pathIds = new Set(allTracks.map(t => t.id))
         setView({
           loading: false,

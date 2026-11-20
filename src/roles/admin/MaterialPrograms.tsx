@@ -19,7 +19,6 @@ import { sessionStats, useStore } from '@/lib/store'
 import { Badge, Empty, Switch } from '@/components/ui'
 import { toneCover } from '@/components/Cover'
 import { mins } from '@/lib/format'
-import { inArea } from '@/lib/area'
 import { programBlurb, programEyebrow } from '@/lib/programInfo'
 import type { Loop, Track } from '@/lib/types'
 import './wallets.css'
@@ -145,7 +144,6 @@ export function MaterialPrograms() {
   const toast = useStore(s => s.toast)
 
   const rows = useMemo<Row[]>(() => db.tracks
-    .filter(inArea('material'))
     .map(track => {
       const courses = db.loops.filter(l => l.trackId === track.id).sort((a, b) => a.index - b.index)
       const ids = new Set(courses.map(l => l.id))

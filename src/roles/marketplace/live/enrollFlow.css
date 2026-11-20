@@ -146,6 +146,15 @@
 }
 .ef-channel .btn { width: 100%; justify-content: center; }
 
+/* Why the figure above is not the price on the card. Quiet, and directly
+   under it, so it is read as part of the same sentence. */
+.ef-fee {
+  margin-top: -8px;
+  max-width: 300px;
+  font-size: 12px; line-height: 1.5; text-align: center;
+  color: var(--muted-2);
+}
+
 .ef-drop {
   display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
   height: 52px; padding: 0 16px; border-radius: var(--r-md);

@@ -81,10 +81,18 @@ describe('railFor', () => {
     expect(paths(railFor('student', 'admin'))).toContain('/admin/material')
   })
 
-  it('gives a student their own record, under the two areas it reads', () => {
+  it('gives a student their own record, under the missions it reads', () => {
     const p = paths(railFor('student'))
     expect(p).toContain('/student/progress')
-    expect(p.indexOf('/student/progress')).toBeGreaterThan(p.indexOf('/student/work'))
+    expect(p.indexOf('/student/progress')).toBeGreaterThan(p.indexOf('/student/missions'))
+  })
+
+  /* Work is a course type now — a work course sits in Material and in
+     Missions beside the training ones, so neither rail has a door of its
+     own to it any more. */
+  it('keeps the retired Work entries off both rails', () => {
+    expect(paths(NAV.admin)).not.toContain('/admin/work')
+    expect(paths(railFor('student'))).not.toContain('/student/work')
   })
 
   it('puts the training path in the demo parent rail, above the numbers', () => {

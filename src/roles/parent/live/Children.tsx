@@ -11,14 +11,15 @@
    same child. The hero is the thing; the feedback hangs off them.
    ========================================================================== */
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle, BookOpen, KeyRound, Loader2, Lock, MessageSquare, Plus,
   ShoppingBag, User, Users,
 } from 'lucide-react'
 import { fetchChildren, resetChildPassword, ParentUsersError } from '@/lib/api/family'
 import { toMessage } from '@/lib/api/errors'
+import { date } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge, Empty, Modal } from '@/components/ui'
@@ -131,6 +132,57 @@ function ChangeChildPassword({ child, onClose }: { child: GuardianChild; onClose
   )
 }
 
+/* ---------------- one hero, as a table ----------------
+
+   Every hero is read through the same rows in the same order, so a parent
+   with three of them compares a line against the line above it rather than
+   hunting for the same fact in three differently-shaped cards. */
+
+const DASH = '—'
+
+function HeroTable({ row }: { row: GuardianChild }) {
+  const open = row.enrollments.filter(e => e.status !== 'dropped').length
+  const fields: Array<[string, ReactNode]> = [
+    ['Name', row.profile.name || DASH],
+    ['Email', row.profile.email],
+    ['Age', row.profile.age ? `${row.profile.age} years old` : DASH],
+    ['Phone', row.profile.phone || DASH],
+    ['WhatsApp', row.profile.whatsapp || DASH],
+    ['National ID', row.profile.national_id || DASH],
+    ['Courses open', open > 0
+      ? `${open} course${open === 1 ? '' : 's'}`
+      : <span className="c-muted">None yet</span>],
+    ['Account', row.profile.disabled
+      ? <span className="c-rose">Paused by the admin</span>
+      : <span className="c-teal">Active</span>],
+    ['Signs in with', row.profile.must_change_password
+      ? 'A password they must change next time'
+      : 'The password you set'],
+    ['Added', date(row.profile.created_at)],
+  ]
+
+  return (
+    <div className="tbl-wrap">
+      <table className="tbl hero-tbl">
+        <thead>
+          <tr>
+            <th>Detail</th>
+            <th>{row.profile.name || row.profile.email}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map(([label, value]) => (
+            <tr key={label}>
+              <td className="hero-tbl-key">{label}</td>
+              <td>{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 /* ---------------- the page ---------------- */
 
 export function ParentChildren() {
@@ -139,6 +191,10 @@ export function ParentChildren() {
   const [adding, setAdding] = useState(false)
   const [changing, setChanging] = useState<GuardianChild | null>(null)
   const nav = useNavigate()
+
+  /* Which tab is open lives in the address, so a reload — or a link a
+     parent sent themselves — comes back to the same hero. */
+  const [params, setParams] = useSearchParams()
 
   const load = useCallback(async () => {
     try {
@@ -151,6 +207,16 @@ export function ParentChildren() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  const asked = params.get('student')
+  const child = rows?.find(r => r.profile.id === asked) ?? rows?.[0] ?? null
+  const pick = (id: string) => {
+    const next = new URLSearchParams(params)
+    next.set('student', id)
+    setParams(next, { replace: true })
+  }
+
+  const open = child ? child.enrollments.filter(e => e.status !== 'dropped').length : 0
 
   return (
     <div className="page">
@@ -167,78 +233,74 @@ export function ParentChildren() {
         <div className="card" style={{ padding: 28 }}>
           <span className="row g8 c-muted t-sm"><Loader2 className="spin" />Loading your heroes…</span>
         </div>
-      ) : rows.length === 0 ? (
+      ) : !child ? (
         <div className="card">
           <Empty icon={<Users />} title="No heroes on your account yet"
             action={<button className="btn primary" onClick={() => setAdding(true)}><Plus />Add hero</button>} />
         </div>
       ) : (
-        <div className="fam-stack">
-          {rows.map(row => {
-            const open = row.enrollments.filter(e => e.status !== 'dropped').length
-            return (
-              <article key={row.profile.id} className="card">
-                <div className="pd-head">
-                  <span className="fn-card-ico lg" style={{ background: 'var(--brand-100)', color: 'var(--brand-600)' }}>
-                    <User />
-                  </span>
-                  <div className="stack g4 grow" style={{ minWidth: 0 }}>
-                    <div className="row g8 wrap">
-                      {open > 0
-                        ? <Badge tone="teal" dot>{open} course{open === 1 ? '' : 's'} open</Badge>
-                        : <Badge tone="gold" dot>No access yet</Badge>}
-                      <span className="eyebrow">Hero</span>
-                    </div>
-                    <h2 className="t-lg w-sb truncate">{row.profile.name || row.profile.email}</h2>
-                    <span className="t-sm c-muted truncate">{row.profile.email}</span>
-                  </div>
-                  <div className="row g8 wrap" style={{ flex: 'none' }}>
-                    <button className="btn sm" onClick={() => setChanging(row)}>
-                      <KeyRound />Password
-                    </button>
-                    {/* The mentor's read on this hero — the page that used to
-                        sit in the rail under a name of its own. */}
-                    <Link className="btn sm" to={`/parent/feedback?student=${row.profile.id}`}>
-                      <MessageSquare />Feedback
-                    </Link>
-                    <button className="btn sm primary"
-                      onClick={() => nav(`/parent/material?student=${row.profile.id}`)}>
-                      <ShoppingBag />Buy a program
-                    </button>
-                  </div>
+        <>
+          {/* One tab per hero on this account, and nothing else. */}
+          <div className="fam-tabs" role="tablist" aria-label="Your heroes">
+            {rows.map(r => (
+              <button key={r.profile.id} type="button" role="tab" className="fam-tab"
+                data-on={r.profile.id === child.profile.id}
+                aria-selected={r.profile.id === child.profile.id}
+                onClick={() => pick(r.profile.id)}>
+                <User />{r.profile.name || r.profile.email}
+              </button>
+            ))}
+          </div>
+
+          <article className="card">
+            <div className="pd-head">
+              <span className="fn-card-ico lg" style={{ background: 'var(--brand-100)', color: 'var(--brand-600)' }}>
+                <User />
+              </span>
+              <div className="stack g4 grow" style={{ minWidth: 0 }}>
+                <div className="row g8 wrap">
+                  {open > 0
+                    ? <Badge tone="teal" dot>{open} course{open === 1 ? '' : 's'} open</Badge>
+                    : <Badge tone="gold" dot>No access yet</Badge>}
+                  <span className="eyebrow">Hero</span>
                 </div>
+                <h2 className="t-lg w-sb truncate">{child.profile.name || child.profile.email}</h2>
+                <span className="t-sm c-muted truncate">{child.profile.email}</span>
+              </div>
+              <div className="row g8 wrap" style={{ flex: 'none' }}>
+                <button className="btn sm" onClick={() => setChanging(child)}>
+                  <KeyRound />Password
+                </button>
+                {/* The mentor's read on this hero — the page that used to
+                    sit in the rail under a name of its own. */}
+                <Link className="btn sm" to={`/parent/feedback?student=${child.profile.id}`}>
+                  <MessageSquare />Feedback
+                </Link>
+                <button className="btn sm primary"
+                  onClick={() => nav(`/parent/material?student=${child.profile.id}`)}>
+                  <ShoppingBag />Buy a program
+                </button>
+              </div>
+            </div>
 
-                <div className="pd-meta">
-                  {row.profile.age ? <span><b>{row.profile.age}</b> years old</span> : null}
-                  <span><b>{open}</b> course{open === 1 ? '' : 's'} open to them</span>
-                  {row.profile.disabled && <span className="c-rose">Account paused by the admin</span>}
-                </div>
+            <div className="pd-col" style={{ paddingTop: 0 }}>
+              <h3 className="pd-col-head"><BookOpen />Their record</h3>
+              <HeroTable row={child} />
+            </div>
 
-                {open === 0 && (
-                  <div className="pd-col" style={{ paddingTop: 0 }}>
-                    <p className="t-xs c-muted2 row g6" style={{ lineHeight: 1.6 }}>
-                      <Lock style={{ width: 13, height: 13 }} />
-                      They can sign in now, but their dashboard is empty until a program is paid for.
-                      {' '}<Link className="crumb-link" to={`/parent/material?student=${row.profile.id}`}>
-                        Pick a program
-                      </Link>.
-                    </p>
-                  </div>
-                )}
-
-                {open > 0 && (
-                  <div className="pd-col" style={{ paddingTop: 0 }}>
-                    <h3 className="pd-col-head"><BookOpen />What is open</h3>
-                    <p className="t-xs c-muted2" style={{ lineHeight: 1.6 }}>
-                      {open} course{open === 1 ? '' : 's'} across the programs you have paid for.
-                      They see them under Missions when they sign in.
-                    </p>
-                  </div>
-                )}
-              </article>
-            )
-          })}
-        </div>
+            {open === 0 && (
+              <div className="pd-col" style={{ paddingTop: 0 }}>
+                <p className="t-xs c-muted2 row g6" style={{ lineHeight: 1.6 }}>
+                  <Lock style={{ width: 13, height: 13 }} />
+                  They can sign in now, but their dashboard is empty until a program is paid for.
+                  {' '}<Link className="crumb-link" to={`/parent/material?student=${child.profile.id}`}>
+                    Pick a program
+                  </Link>.
+                </p>
+              </div>
+            )}
+          </article>
+        </>
       )}
 
       {adding && <AddChild onClose={() => setAdding(false)} onAdded={() => void load()} />}
@@ -246,4 +308,3 @@ export function ParentChildren() {
     </div>
   )
 }
-

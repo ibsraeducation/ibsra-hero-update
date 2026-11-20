@@ -19,7 +19,10 @@ describe('regionOfZone', () => {
 describe('batchOpenTo', () => {
   it('offers an everywhere batch to everyone, named or not', () => {
     expect(batchOpenTo(ANYWHERE, 'CA')).toBe(true)
+    expect(batchOpenTo(ANYWHERE, 'EG')).toBe(true)
+    expect(batchOpenTo(ANYWHERE, 'SA')).toBe(true)
     expect(batchOpenTo(null, null)).toBe(true)
+    expect(batchOpenTo(undefined, 'EG')).toBe(true)
   })
 
   it('keeps a Canada batch for Canada', () => {

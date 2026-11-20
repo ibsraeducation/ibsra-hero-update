@@ -20,7 +20,10 @@ import {
   FileText, Loader2, Lock, Receipt, Smartphone, Upload, XCircle,
 } from 'lucide-react'
 import { fetchChildren, fetchMyPayments, fetchPayAccounts, proofUrl } from '@/lib/api/family'
-import { EMPTY_BILLING, fetchBilling, fetchSubscriptions, openChannels, qrUrl } from '@/lib/api/billing'
+import {
+  amountToSend, EMPTY_BILLING, fetchBilling, fetchSubscriptions, METHOD_FEE_PCT, openChannels,
+  priceWithoutFee, qrUrl,
+} from '@/lib/api/billing'
 import { fileSubscriptionPayment } from '@/lib/api/payments'
 import { toMessage } from '@/lib/api/errors'
 import { useAuth } from '@/lib/auth'
@@ -85,6 +88,10 @@ function ResubmitDialog({ payment, accounts, onClose, onDone }: {
   const [method, setMethod] = useState<PayMethod>(
     channels.includes(payment.method) ? payment.method : channels[0] ?? 'instapay',
   )
+  /* The subscription on its own, with the cut the rejected attempt's channel
+     had added taken back off. Everything here is quoted from that, so moving
+     to the other channel moves the figure by the fee and by nothing else. */
+  const owed = useMemo(() => priceWithoutFee(payment.amount_egp, payment.method), [payment])
   const [amount, setAmount] = useState(String(payment.amount_egp))
   const [proof, setProof] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -94,6 +101,10 @@ function ResubmitDialog({ payment, accounts, onClose, onDone }: {
   useEffect(() => {
     if (channels.length && !channels.includes(method)) setMethod(channels[0])
   }, [channels, method])
+
+  const fee = METHOD_FEE_PCT[method] ?? 0
+  const due = amountToSend(owed, method)
+  useEffect(() => { setAmount(String(due)) }, [due])
 
   const qr = qrUrl(method === 'instapay' ? accounts?.instapay_qr : accounts?.vodafone_qr, accounts?.updated_at)
   const link = (method === 'instapay' ? accounts?.instapay_link : accounts?.vodafone_link)?.trim()
@@ -185,7 +196,13 @@ function ResubmitDialog({ payment, accounts, onClose, onDone }: {
                 <p className="ef-hint" style={{ textAlign: 'center' }}>No way of paying is open right now.</p>
               ) : (
                 <div className="ef-channel" key={method}>
-                  <span className="ef-hint">Send <b className="c-ink2">{money(payment.amount_egp)}</b></span>
+                  <span className="ef-hint">Send <b className="c-ink2">{money(due)}</b></span>
+                  {fee > 0 && (
+                    <span className="ef-fee">
+                      {money(owed)} for the subscription, and the {fee}% {PAY_METHOD_LABEL[method]}
+                      {' '}takes off a transfer.
+                    </span>
+                  )}
                   {qr && <img className="ef-qr" src={qr} alt={`${PAY_METHOD_LABEL[method]} QR code`} />}
                   {link && (
                     <a className="btn" href={link} target="_blank" rel="noopener noreferrer">

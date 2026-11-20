@@ -17,7 +17,6 @@ import { Cover, toneCover } from '@/components/Cover'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ProgramMap } from '@/components/ProgramMap'
 import { useStore } from '@/lib/store'
-import { inArea } from '@/lib/area'
 import { programEyebrow } from '@/lib/programInfo'
 import type { Track } from '@/lib/types'
 import { useParent } from './data'
@@ -27,9 +26,7 @@ export default function ParentPath() {
   const db = useStore(s => s.db)
   const { child, journey } = useParent()
 
-  /* Only the teaching programs: Work is where the child builds their own
-     assets inside a program, not a step on the path. */
-  const tracks = db.tracks.filter(inArea('material'))
+  const tracks = db.tracks
 
   /* Where the child stands on each program, from the same reading the
      summary uses — so the two pages can never say different things. */

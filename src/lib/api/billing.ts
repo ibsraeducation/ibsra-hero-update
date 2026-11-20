@@ -96,6 +96,36 @@ export function openChannels(a: PayAccountsRow | null | undefined): PayMethod[] 
   return out
 }
 
+/* ---------------- what a channel adds on top ---------------- */
+
+/** Vodafone Cash takes a cut of every transfer it carries, so money sent
+ *  that way arrives short. The family sends the cut on top and the school
+ *  still receives the price — the package itself has not gone up. InstaPay
+ *  carries the money whole, and the wallet never leaves the building, so
+ *  neither of those adds anything. */
+export const METHOD_FEE_PCT: Record<PayMethod, number> = {
+  instapay: 0,
+  vodafone_cash: 1,
+  wallet: 0,
+  admin: 0,
+}
+
+/** What to send through one channel so that `price` lands. Rounded up to the
+ *  pound: a payment is whole EGP either way, and a transfer a pound over is
+ *  nothing to anybody while a pound short is a rejected one. */
+export function amountToSend(price: number, method: PayMethod): number {
+  const fee = METHOD_FEE_PCT[method] ?? 0
+  return fee ? Math.ceil(price * (1 + fee / 100)) : Math.round(price)
+}
+
+/** The price inside an amount already sent — `amountToSend` read backwards.
+ *  A figure quoted before this fee existed reads back as very slightly less
+ *  than it was, which is why nothing re-quotes an approved payment. */
+export function priceWithoutFee(sent: number, method: PayMethod): number {
+  const fee = METHOD_FEE_PCT[method] ?? 0
+  return Math.round(fee ? sent / (1 + fee / 100) : sent)
+}
+
 /* ---------------- the QR codes ---------------- */
 
 const QR_BUCKET = 'pay-qr'

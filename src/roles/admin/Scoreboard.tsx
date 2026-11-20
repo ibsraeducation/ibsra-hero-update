@@ -18,7 +18,7 @@ import {
 import { Badge, Empty } from '@/components/ui'
 import { listStudents, type StudentRow } from '@/lib/api/students'
 import { listAllSubmissions } from '@/lib/api/submissions'
-import { fetchBatches, fetchBookings } from '@/lib/api/schedule'
+import { fetchBookings } from '@/lib/api/schedule'
 import {
   dayOf, listMentorFeedback, postMentorFeedback,
 } from '@/lib/api/mentorFeedback'
@@ -28,7 +28,7 @@ import { useAuthStore } from '@/lib/authStore'
 import { asPct, scoreSession, type ScoredSubmission, type SessionScores } from '@/lib/scores'
 import { regionLabel } from '@/lib/region'
 import type {
-  CourseBatchRow, MentorFeedbackRow, SessionBookingRow, SubmissionRow,
+  MentorFeedbackRow, SessionBookingRow, SubmissionRow,
 } from '@/lib/api/rows'
 import type { Session } from '@/lib/types'
 
@@ -127,10 +127,11 @@ function NoteCell({ row, onSaved }: { row: Row; onSaved: (n: MentorFeedbackRow) 
 
 export function ScoreboardPanel() {
   const db = useStore(s => s.db)
+  const batches = useStore(s => s.batches)
+  const reloadBatches = useStore(s => s.reloadBatches)
   const [students, setStudents] = useState<StudentRow[] | null>(null)
   const [subs, setSubs] = useState<SubmissionRow[]>([])
   const [bookings, setBookings] = useState<SessionBookingRow[]>([])
-  const [batches, setBatches] = useState<CourseBatchRow[]>([])
   const [notes, setNotes] = useState<MentorFeedbackRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [shut, setShut] = useState<Record<string, boolean>>({})
@@ -141,14 +142,13 @@ export function ScoreboardPanel() {
       setError(null)
       const from = new Date(Date.now() - RANGE_DAYS_BACK * 86_400_000).toISOString()
       const to = new Date(Date.now() + RANGE_DAYS_FWD * 86_400_000).toISOString()
-      const [people, answers, sittings, bs, ns] = await Promise.all([
+      const [people, answers, sittings, ns] = await Promise.all([
         listStudents(), listAllSubmissions(), fetchBookings({ from, to }),
-        fetchBatches(), listMentorFeedback(),
+        listMentorFeedback(),
       ])
       setStudents(people)
       setSubs(answers)
       setBookings(sittings)
-      setBatches(bs)
       setNotes(ns)
     } catch (e) {
       setError(toMessage(e))
@@ -156,7 +156,7 @@ export function ScoreboardPanel() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(); void reloadBatches() }, [load, reloadBatches])
 
   const groups = useMemo((): Group[] => {
     if (!students) return []

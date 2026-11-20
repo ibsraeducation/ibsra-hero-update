@@ -23,8 +23,8 @@ import { availabilityLine } from '@/lib/programLength'
 import { REGIONS, regionLabel } from '@/lib/region'
 import { fetchWallet } from '@/lib/api/wallet'
 import type { EnrollmentStatus, SubmissionRow } from '@/lib/api/rows'
-import { TASK_META, type DB, type Track } from '@/lib/types'
-import { trackArea } from '@/lib/area'
+import { courseKind, TASK_META, type DB, type Loop } from '@/lib/types'
+
 
 /* ==========================================================================
    Students — the accounts an admin creates, the courses they sit in, and
@@ -80,11 +80,14 @@ function courseLabel(db: DB, loopId: string) {
   const loop = db.loops.find(l => l.id === loopId)
   if (!loop) return 'Removed course'
   const track = db.tracks.find(t => t.id === loop.trackId)
-  return `${track ? programLabel(track) : 'Program'} · ${loop.name}`
+  return `${track?.name ?? 'Program'} · ${courseName(loop)}`
 }
 
-/* Material and Work each have their own programs, so a Work one says so. */
-const programLabel = (t: Track) => (trackArea(t) === 'work' ? `Work · ${t.name}` : t.name)
+/* A work course says so beside its name. It used to be the program that
+   carried that — Work was an area of its own — and the fact belongs to the
+   course now that a program can hold both kinds. */
+const courseName = (l: Loop) =>
+  `${l.name} · ${l.code}${courseKind(l) === 'work' ? ' · Work' : ''}`
 
 function CourseSelect({ db, value, onChange, exclude = [], placeholder = 'No course yet' }: {
   db: DB; value: string; onChange: (v: string) => void; exclude?: string[]; placeholder?: string
@@ -97,8 +100,8 @@ function CourseSelect({ db, value, onChange, exclude = [], placeholder = 'No cou
           .sort((a, b) => a.index - b.index)
         if (!loops.length) return null
         return (
-          <optgroup key={t.id} label={programLabel(t)}>
-            {loops.map(l => <option key={l.id} value={l.id}>{l.name} · {l.code}</option>)}
+          <optgroup key={t.id} label={t.name}>
+            {loops.map(l => <option key={l.id} value={l.id}>{courseName(l)}</option>)}
           </optgroup>
         )
       })}

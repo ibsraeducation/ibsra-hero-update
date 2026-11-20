@@ -34,7 +34,6 @@ import { backendLive } from '@/lib/supabase'
 /* The admin surface is the heavy one — split it so a role switch into
    student or parent never pays for the CMS bundle. */
 const Material = lazy(() => import('@/roles/admin/Material'))
-const Work = lazy(() => import('@/roles/admin/Work'))
 const SessionEditor = lazy(() => import('@/roles/admin/editor/SessionEditor'))
 const MentorFeedback = lazy(() => import('@/roles/admin/MentorFeedback'))
 const StudentsAndPayments = lazy(() => import('@/roles/admin/StudentsAndPayments'))
@@ -127,14 +126,10 @@ export default function App() {
         <Route path="admin/material/:trackId/:loopId" element={<Suspense fallback={<PageSkeleton />}><Material /></Suspense>} />
         <Route path="admin/material/:trackId/:loopId/:sessionId"
           element={<Suspense fallback={<PageSkeleton />}><SessionEditor /></Suspense>} />
-        {/* Work: its own workflow — project → milestone → sessions — on the
-            sessions where the student works on their own assets. The session
-            editor below is the one Material uses. */}
-        <Route path="admin/work" element={<Suspense fallback={<PageSkeleton />}><Work /></Suspense>} />
-        <Route path="admin/work/:trackId" element={<Suspense fallback={<PageSkeleton />}><Work /></Suspense>} />
-        <Route path="admin/work/:trackId/:loopId" element={<Suspense fallback={<PageSkeleton />}><Work /></Suspense>} />
-        <Route path="admin/work/:trackId/:loopId/:sessionId"
-          element={<Suspense fallback={<PageSkeleton />}><SessionEditor /></Suspense>} />
+        {/* Work used to be a second area beside Material, with its own three
+            levels. It is a course kind now, so its programs are ordinary
+            programs and its old links land on Material. */}
+        <Route path="admin/work/*" element={<Navigate to="/admin/material" replace />} />
         {/* The Marketplace (kits) is off for the admin too; the page stays in
             roles/admin/Marketplace.tsx for when kits go on sale. */}
         <Route path="admin/marketplace" element={<Navigate to="/admin/material" replace />} />
@@ -168,15 +163,12 @@ export default function App() {
         <Route path="student/missions" element={<Missions />} />
         <Route path="student/missions/:trackId" element={<MissionTrack />} />
         <Route path="student/missions/:trackId/:loopId" element={<MissionLoop />} />
-        {/* Work is the same folder tree, on the sessions where the student
-            works on their own assets. */}
-        <Route path="student/work" element={<Missions />} />
-        <Route path="student/work/:trackId" element={<MissionTrack />} />
-        <Route path="student/work/:trackId/:loopId" element={<MissionLoop />} />
+        {/* Work courses sit in Missions with the training ones now — one tree,
+            marked by kind. Old links land there. */}
+        <Route path="student/work/*" element={<Navigate to="/student/missions" replace />} />
         <Route path="student/session/:sessionId" element={<SessionView />} />
-        {/* The student's own record: two tabs — My Learning and My Work —
-            each with the charts, the projects and the mentor's notes for
-            that area. The tab rides in the query. */}
+        {/* The student's own record: the charts, the projects they have built
+            and the mentor's notes on them. */}
         <Route path="student/progress" element={<StudentProgress />} />
         {/* Same five pages and slicer as the parent's, on the student's own record. */}
         <Route path="student/performance" element={<StudentPerformance />}>

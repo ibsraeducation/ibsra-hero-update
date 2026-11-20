@@ -611,7 +611,7 @@ export default function AdminMarketplace() {
   const kits = useMemo(() => products.filter(p => p.category === 'kit'), [products])
   /* The programs are the store's own, so the tab can count them without
      waiting for anything. */
-  const programCount = useStore(st => st.db.tracks.filter(t => (t.area ?? 'material') !== 'work').length)
+  const programCount = useStore(st => st.db.tracks.length)
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()

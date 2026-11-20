@@ -167,10 +167,9 @@ export interface ProgramOffer {
   courses: CourseOffer[]
 }
 
-/** One entry per program in Material, with its courses. Work is not in it:
- *  a project is something a mentor puts a student on, never something bought.
- *  Whether each one is actually on sale is the admin's own switch, which
- *  travels with the row rather than being decided here. */
+/** One entry per program in Material, with its courses — training courses and
+ *  work courses alike. Whether each one is actually on sale is the admin's own
+ *  switch, which travels with the row rather than being decided here. */
 export async function fetchOffers(): Promise<ProgramOffer[]> {
   const client = sb()
   const [tracks, loops] = await Promise.all([
@@ -189,7 +188,6 @@ export async function fetchOffers(): Promise<ProgramOffer[]> {
   }
   const courses = (loops.data ?? []) as L[]
   return (tracks.data ?? [])
-    .filter(t => (t.area ?? 'material') !== 'work')
     .map(t => ({
       id: t.id as string,
       name: (t.name as string) || 'Untitled program',

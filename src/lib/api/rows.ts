@@ -6,7 +6,7 @@
 
 import type { PayPlan } from '@/lib/billing'
 import type {
-  ContentArea, Loop, ProgramStage, PublishStatus, SessionType, TabVideos, TaskKind,
+  CourseKind, Loop, ProgramStage, PublishStatus, SessionKind, SessionType, TabVideos, TaskKind,
 } from '@/lib/types'
 
 type LoopStatusRow = Loop['status']
@@ -67,11 +67,10 @@ export interface TrackRow {
   stage?: ProgramStage | null
   /** Migration program_path. The programs this one leads to. */
   next_ids?: string[]
+  /** Migration locked_flag. Closed to students and families. */
+  locked?: boolean
   /** Migration marketplace_listing. Show it in the Marketplace. */
   listed?: boolean
-  /** Migration program_area. Sent only for a Work program, so saving a
-   *  Material one never depends on the column. */
-  area?: ContentArea
   /** Migration video_on_content. The program's intro video, shown in the
    *  Marketplace before anybody enrols. */
   video_url?: string | null
@@ -87,6 +86,9 @@ export interface LoopRow {
   code: string
   name: string
   idx: number
+  /** Migration work_is_a_course_kind. What the course is for — 'training'
+   *  or 'work'. Unset reads as training. */
+  kind?: CourseKind
   /** Lectures a week for this course, 1 or 2. The admin sets it on Programs;
    *  a family picks which days they fall on. */
   lectures_per_week?: number
@@ -97,6 +99,8 @@ export interface LoopRow {
   start_date: string
   end_date: string
   status: LoopStatusRow
+  /** Migration locked_flag. Closed to students and families. */
+  locked?: boolean
   /** Migration marketplace_listing. Offer this course on its own. */
   listed?: boolean
   /** Migration marketplace_listing. EGP for this one course; null is
@@ -239,6 +243,9 @@ export interface SessionRow {
   duration_min: number
   meeting_url: string | null
   recording_ready: boolean
+  /** Migration work_is_a_kind. What this one session is for — 'teaching' or
+   *  'work'. Null is the normal case: follow the course. */
+  kind?: SessionKind | null
   content: SessionContent
   /** Migration values_on_courses_and_sessions: the same seven lists a
    *  program has. Written through admin_save_session like the rest. */

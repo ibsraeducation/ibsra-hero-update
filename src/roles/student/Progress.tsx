@@ -20,9 +20,8 @@ import { fetchMentorFeedback } from '@/lib/api/mentorFeedback'
 import { toMessage } from '@/lib/api/errors'
 import type { MentorFeedbackRow } from '@/lib/api/rows'
 import { dayLabel, notesFor, useMentor } from '@/lib/mentorNotes'
-import { AREA_NOUNS } from '@/lib/area'
-import { PROJECT_STATE_META } from '@/lib/types'
-import { useAreaProgress, type AreaProgress, type ProjectMark } from './progressModel'
+import { PROJECT_STATE_META, SESSION_KIND_META } from '@/lib/types'
+import { useProgress, type Progress, type ProjectMark } from './progressModel'
 import { useMe } from './useMe'
 import './progress.css'
 
@@ -87,8 +86,15 @@ function ProjectList({ state, items }: { state: ProjectMark['state']; items: Pro
               <Link to={`/student/session/${p.sessionId}`} className="sp-pitem">
                 <span className="stack g2 grow" style={{ minWidth: 0 }}>
                   <span className="t-sm w-med truncate">{p.name}</span>
-                  <span className="t-xs c-muted2 truncate">
-                    {p.loopName}{p.loopName && p.sessionName ? ' · ' : ''}{p.sessionName}
+                  <span className="row g6 t-xs c-muted2" style={{ minWidth: 0 }}>
+                    {/* Which kind of session it came out of — a training
+                        project, or one built in a work session. */}
+                    <Badge tone={SESSION_KIND_META[p.kind].tone}>
+                      {SESSION_KIND_META[p.kind].project}
+                    </Badge>
+                    <span className="truncate">
+                      {p.loopName}{p.loopName && p.sessionName ? ' · ' : ''}{p.sessionName}
+                    </span>
                   </span>
                   {state === 'building' && (
                     <span className="meter" style={{ maxWidth: 150 }}><i style={{ width: `${p.progress}%` }} /></span>
@@ -201,11 +207,10 @@ function MentorNotes({ notes, error, empty }: {
   )
 }
 
-/* ---------------- one tab ---------------- */
+/* ---------------- the panels ---------------- */
 
-function AreaPanels({ progress }: { progress: AreaProgress }) {
+function Panels({ progress }: { progress: Progress }) {
   const { me } = useMe()
-  const nouns = AREA_NOUNS.material
   const { projects, totals, courses } = progress
   const { notes, error } = useMentorNotes(me.id, progress.tracks.map(t => t.id))
 
@@ -275,7 +280,7 @@ function AreaPanels({ progress }: { progress: AreaProgress }) {
       {/* ---- the courses behind the numbers ---- */}
       {courses.length > 1 && (
         <Panel
-          title={`Your ${nouns.loopPlural}`}
+          title="Your courses"
           icon={<Library />}
         >
           <div className="sp-courses">
@@ -318,12 +323,12 @@ function AreaPanels({ progress }: { progress: AreaProgress }) {
 /* ---------------- the page ---------------- */
 
 export function StudentProgress() {
-  const progress = useAreaProgress('material')
+  const progress = useProgress()
 
   return (
     <div className="page">
       <PageHeader title="My Progress" />
-      <AreaPanels progress={progress} />
+      <Panels progress={progress} />
     </div>
   )
 }

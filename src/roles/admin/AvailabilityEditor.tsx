@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, GraduationCap, Layers, Loader2, Plus, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, GraduationCap, Layers, Loader2, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import {
-  assignToWindow, deleteWindow, durationOk, fetchBatches, fetchWindows, LECTURE_DEFAULT_MIN,
+  assignToWindow, deleteBatch, deleteWindow, durationOk, fetchWindows, LECTURE_DEFAULT_MIN,
   LECTURE_MAX_MIN, LECTURE_MIN_MIN, saveBatch, saveWindow, saveWindowDays, SECTION_DEFAULT_MIN,
   SECTION_MIN_MIN, unassignFromWindow, windowOccurrences, windowRoster,
 } from '@/lib/api/schedule'
 import { toMessage } from '@/lib/api/errors'
 import { useStore } from '@/lib/store'
+import { ANYWHERE, REGIONS } from '@/lib/region'
 import { gapLine, sharedGap, timeGaps } from '@/lib/enrolTimes'
 import { minutesLabel } from '@/lib/programLength'
 import { dayIn, hhmmToMin, minToHHMM, WEEKDAY_SHORT, WEEKDAYS } from '@/lib/time'
@@ -297,8 +298,9 @@ function openingOk(kind: SlotKind, shape: Shape): boolean {
     && durationOk(kind, 0, top)
 }
 
-export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
+export function WindowForm({ rows, initialWeek, presetWeekday, onClose, onSaved }: {
   rows: AvailabilityWindowRow[] | null
+  initialWeek?: { course: CourseWeek; batchId: string | null }
   presetWeekday?: number
   onClose: () => void
   onSaved: () => void
@@ -307,45 +309,52 @@ export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
   const tracks = useStore(s => s.db.tracks)
 
   const w = rows?.[0] ?? null
+  const initLec = initialWeek?.course.lectures[0] ?? null
+  const initSec = initialWeek?.course.sections[0] ?? null
 
   const [tab, setTab] = useState<SlotKind>(w?.kind ?? 'lecture')
 
-  const [withLecture, setWithLecture] = useState(true)
-  const [withSection, setWithSection] = useState(true)
+  const [withLecture, setWithLecture] = useState(() => (initialWeek ? initialWeek.course.lectures.length > 0 : true))
+  const [withSection, setWithSection] = useState(() => (initialWeek ? initialWeek.course.sections.length > 0 : true))
 
   const [days, setDays] = useState<number[]>(() => {
+    if (initialWeek && initialWeek.course.lectures.length > 0) {
+      const had = initialWeek.course.lectures.map(r => r.weekday).filter((d): d is number => d !== null)
+      if (had.length) return had.sort((a, b) => a - b)
+    }
     const had = (rows ?? []).map(r => r.weekday).filter((d): d is number => d !== null)
     return had.length ? had.sort((a, b) => a - b) : [presetWeekday ?? 0]
   })
-  const [start, setStart] = useState(minToHHMM(w?.start_min ?? 960))
-  const [end, setEnd] = useState(minToHHMM(
-    w?.end_min ?? 960 + defaultLength(w?.kind ?? 'lecture')))
-  const [mentor, setMentor] = useState(w?.mentor ?? '')
-  const [seats, setSeats] = useState(String(w?.capacity ?? 4))
-  const [active, setActive] = useState(w?.active ?? true)
+  const [start, setStart] = useState(() => {
+    const src = initLec ?? w
+    return minToHHMM(src?.start_min ?? 960)
+  })
+  const [end, setEnd] = useState(() => {
+    const src = initLec ?? w
+    return minToHHMM(src?.end_min ?? 960 + defaultLength(src?.kind ?? 'lecture'))
+  })
+  const [mentor, setMentor] = useState(() => initLec?.mentor ?? w?.mentor ?? '')
+  const [seats, setSeats] = useState(() => String(initLec?.capacity ?? w?.capacity ?? 4))
+  const [active, setActive] = useState(() => initLec?.active ?? w?.active ?? true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [loopId, setLoopId] = useState(w?.loop_id ?? '')
   const trackOf = (id: string) => loops.find(l => l.id === id)?.trackId ?? ''
-  const [trackId, setTrackId] = useState(() => (w?.loop_id ? trackOf(w.loop_id) : ''))
+  const [loopId, setLoopId] = useState(() => initialWeek?.course.loopId ?? w?.loop_id ?? '')
+  const [trackId, setTrackId] = useState(() => {
+    const id = initialWeek?.course.loopId ?? w?.loop_id
+    return id ? trackOf(id) : ''
+  })
   const courses = useMemo(
     () => loops.filter(l => l.trackId === trackId).sort((a, b) => a.index - b.index),
     [loops, trackId])
 
-  const [batches, setBatches] = useState<CourseBatchRow[]>([])
-  const [batchId, setBatchId] = useState(w?.batch_id ?? '')
+  const batches = useStore(s => s.batches)
+  const [batchId, setBatchId] = useState(() => initialWeek?.batchId ?? w?.batch_id ?? '')
   const [batchName, setBatchName] = useState('')
+  const [batchRegion, setBatchRegion] = useState(ANYWHERE)
   const course = loops.find(l => l.id === loopId)
 
-  useEffect(() => {
-    if (!loopId) { setBatches([]); return }
-    let live = true
-    void fetchBatches(loopId)
-      .then(bs => { if (live) setBatches(bs) })
-      .catch(() => { if (live) setBatches([]) })
-    return () => { live = false }
-  }, [loopId])
 
   const [published, setPublished] = useState<AvailabilityWindowRow[]>([])
   useEffect(() => {
@@ -357,17 +366,22 @@ export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
     return () => { live = false }
   }, [loopId])
 
-  const [slot, setSlot] = useState(String(
-    w?.slot_min ?? defaultLength(w?.kind ?? 'lecture')))
-  const [slotMax, setSlotMax] = useState(String(
-    w?.slot_max_min ?? w?.slot_min ?? defaultLength(w?.kind ?? 'lecture')))
+  const [slot, setSlot] = useState(() => String(
+    initLec?.slot_min ?? w?.slot_min ?? defaultLength(w?.kind ?? 'lecture')))
+  const [slotMax, setSlotMax] = useState(() => String(
+    initLec?.slot_max_min ?? initLec?.slot_min ?? w?.slot_max_min ?? w?.slot_min ?? defaultLength(w?.kind ?? 'lecture')))
 
-  const [secTouched, setSecTouched] = useState(false)
-  const [secStartRaw, setSecStartRaw] = useState('')
-  const [secEndRaw, setSecEndRaw] = useState('')
-  const [secSlot, setSecSlot] = useState(String(SECTION_DEFAULT_MIN))
-  const [secSlotMax, setSecSlotMax] = useState(String(SECTION_DEFAULT_MIN))
-  const [secDaysRaw, setSecDaysRaw] = useState<number[] | null>(null)
+  const [secTouched, setSecTouched] = useState(() => !!initialWeek?.course.sections.length)
+  const [secStartRaw, setSecStartRaw] = useState(() => initSec ? minToHHMM(initSec.start_min) : '')
+  const [secEndRaw, setSecEndRaw] = useState(() => initSec ? minToHHMM(initSec.end_min) : '')
+  const [secSlot, setSecSlot] = useState(() => String(initSec?.slot_min ?? SECTION_DEFAULT_MIN))
+  const [secSlotMax, setSecSlotMax] = useState(() => String(initSec?.slot_max_min ?? initSec?.slot_min ?? SECTION_DEFAULT_MIN))
+  const [secDaysRaw, setSecDaysRaw] = useState<number[] | null>(() => {
+    if (initialWeek && initialWeek.course.sections.length > 0) {
+      return initialWeek.course.sections.map(r => r.weekday).filter((d): d is number => d !== null).sort((a, b) => a - b)
+    }
+    return null
+  })
 
   const startMin = hhmmToMin(start)
   const endMin = hhmmToMin(end)
@@ -447,6 +461,7 @@ export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
     try {
       const batch = batchId || (await saveBatch({
         loopId, name: batchName.trim(), startsOn: isoDay(course?.startDate) || today(),
+        region: batchRegion,
       })).id
 
       const common = {
@@ -456,7 +471,23 @@ export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
         capacity: Math.max(1, Number(seats) || 1),
         active,
       }
-      if (w && rows) {
+      if (initialWeek) {
+        const oldIds = [...initialWeek.course.lectures, ...initialWeek.course.sections].map(x => x.id)
+        await Promise.all(oldIds.map(id => deleteWindow(id)))
+        if (withLecture && days.length > 0) {
+          await saveWindowDays({ ...common, kind: 'lecture', startMin, endMin, slotMin, slotMaxMin }, days)
+        }
+        if (withSection && secDays.length > 0) {
+          await saveWindowDays({
+            ...common,
+            kind: 'section',
+            startMin: secStartMin,
+            endMin: secEndMin,
+            slotMin: secSlotMin,
+            slotMaxMin: secSlotMaxMin,
+          }, secDays)
+        }
+      } else if (w && rows) {
         const fields = { ...common, kind: w.kind, startMin, endMin, slotMin, slotMaxMin }
         const dated = rows.filter(r => r.weekday !== null)
         const keep = dated.filter(r => days.includes(r.weekday as number))
@@ -596,16 +627,18 @@ export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
 
   return (
     <Modal open onClose={onClose}
-      title={w ? (rows && rows.length > 1 ? 'Edit these times' : 'Edit this time') : 'Add a week'}
+      title={initialWeek ? 'Edit week' : w ? (rows && rows.length > 1 ? 'Edit these times' : 'Edit this time') : 'Add a week'}
       description="Cairo time — families abroad see it converted to their own."
       footer={
         <>
           <span className="grow" />
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
           <button className="btn primary" onClick={() => void save()} disabled={busy || !canSave}>
-            {w
-              ? `Save ${days.length} ${days.length === 1 ? 'time' : 'times'}`
-              : addLabel(withLecture ? days.length : 0, secDays.length, withSection)}
+            {initialWeek
+              ? 'Save week'
+              : w
+                ? `Save ${days.length} ${days.length === 1 ? 'time' : 'times'}`
+                : addLabel(withLecture ? days.length : 0, secDays.length, withSection)}
           </button>
         </>
       }
@@ -637,19 +670,46 @@ export function WindowForm({ rows, presetWeekday, onClose, onSaved }: {
             ? 'This time joins an intake that already exists.'
             : 'Named here — the intake is the heroes who sit these hours.'}>
           <div className="grid g-2">
-            <select className="sel" value={batchId} disabled={!loopId}
-              onChange={e => setBatchId(e.target.value)}>
-              <option value="">{loopId ? 'New batch…' : 'Pick a course first'}</option>
+            <select className="sel" value={batchId}
+              onChange={e => {
+                const id = e.target.value
+                setBatchId(id)
+                if (id) {
+                  const b = batches.find(x => x.id === id)
+                  if (b) {
+                    setBatchName(b.name)
+                    setBatchRegion(b.region || ANYWHERE)
+                  }
+                } else {
+                  setBatchName('')
+                  setBatchRegion(ANYWHERE)
+                }
+              }}>
+              <option value="">New batch…</option>
               {batches.map(b => (
-                <option key={b.id} value={b.id}>{b.name} · from {date(b.starts_on)}</option>
+                <option key={b.id} value={b.id}>
+                  {b.name}{b.starts_on ? ` · from ${date(b.starts_on)}` : ''}
+                </option>
               ))}
             </select>
-            {!batchId && (
-              <input className="inp" value={batchName} disabled={!loopId}
+            {!batchId ? (
+              <input className="inp" value={batchName}
                 placeholder="Name this batch, e.g. October intake"
                 onChange={e => setBatchName(e.target.value)} />
+            ) : (
+              <input className="inp" value={batches.find(b => b.id === batchId)?.name ?? batchName}
+                disabled aria-label="Selected batch name" />
             )}
           </div>
+          {!batchId && (
+            <div className="mt8">
+              <select className="sel" value={batchRegion} onChange={e => setBatchRegion(e.target.value)}
+                title="Who it is for" aria-label="Batch region">
+                <option value={ANYWHERE}>Everywhere</option>
+                {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+              </select>
+            </div>
+          )}
         </Field>
 
         {w ? (
@@ -745,16 +805,24 @@ export function AvailabilityEditor() {
   const [windows, setWindows] = useState<AvailabilityWindowRow[] | null>(null)
   const [next, setNext] = useState<Record<string, string[]>>({})
   const [editing, setEditing] = useState<HourRow | null | 'new'>(null)
+  const [editingWeek, setEditingWeek] = useState<{ course: CourseWeek; batchId: string | null } | null>(null)
+  const [removingCourseWeek, setRemovingCourseWeek] = useState<{ course: CourseWeek; batchId: string | null } | null>(null)
+  const [removingBatch, setRemovingBatch] = useState<{ batchId: string | null; name: string; courses: CourseWeek[] } | null>(null)
+  const [editingBatch, setEditingBatch] = useState<CourseBatchRow | null>(null)
+  const [editingBatchName, setEditingBatchName] = useState('')
+  const [editingBatchStartsOn, setEditingBatchStartsOn] = useState('')
+  const [editingBatchRegion, setEditingBatchRegion] = useState(ANYWHERE)
+  const [editingBatchError, setEditingBatchError] = useState<string | null>(null)
   const [roster, setRoster] = useState<HourRow | null>(null)
   const [removing, setRemoving] = useState<HourRow | null>(null)
-  const [allBatches, setAllBatches] = useState<CourseBatchRow[]>([])
+  const allBatches = useStore(s => s.batches)
+  const reloadBatches = useStore(s => s.reloadBatches)
   const loops = useStore(s => s.db.loops)
   const tracks = useStore(s => s.db.tracks)
 
   const load = useCallback(async () => {
-    const [ws, bs] = await Promise.all([fetchWindows(), fetchBatches()])
+    const ws = await fetchWindows()
     setWindows(ws)
-    setAllBatches(bs)
     const pairs = await Promise.all(ws.map(async w => {
       try {
         const occ = await windowOccurrences(w.id, w.weekday ?? 0, 3)
@@ -764,7 +832,7 @@ export function AvailabilityEditor() {
     setNext(Object.fromEntries(pairs))
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(); void reloadBatches() }, [load, reloadBatches])
 
   const courseName = useCallback((id: string) => {
     if (!id) return 'Every course · published before times carried one'
@@ -934,6 +1002,31 @@ export function AvailabilityEditor() {
                 `${g.lectures} lecture${g.lectures === 1 ? '' : 's'}`,
                 `${g.sections} section${g.sections === 1 ? '' : 's'}`,
               ].filter(Boolean).join(' · ')}
+              actions={
+                <div className="row g6">
+                  {g.batchId && batchOf(g.batchId) && (
+                    <button type="button" className="btn ghost sm"
+                      onClick={() => {
+                        const b = batchOf(g.batchId)
+                        if (b) {
+                          setEditingBatch(b)
+                          setEditingBatchName(b.name)
+                          setEditingBatchStartsOn(b.starts_on ? isoDay(b.starts_on) : today())
+                          setEditingBatchRegion(b.region || ANYWHERE)
+                          setEditingBatchError(null)
+                        }
+                      }}
+                      title="Edit batch name and start date">
+                      <Pencil className="ico-xs" />Edit batch
+                    </button>
+                  )}
+                  <button type="button" className="btn ghost icon sm" style={{ color: 'var(--rose-600)' }}
+                    onClick={() => setRemovingBatch({ batchId: g.batchId, name: batchName(g.batchId), courses: g.courses })}
+                    aria-label={`Delete batch ${batchName(g.batchId)}`}>
+                    <Trash2 />
+                  </button>
+                </div>
+              }
             >
               <div className="avail-course">
                 {g.courses.map(c => (
@@ -942,6 +1035,20 @@ export function AvailabilityEditor() {
                     title={<span className="truncate">{courseName(c.loopId)}</span>}
                     aside={`${c.lectures.length} lecture${c.lectures.length === 1 ? '' : 's'}`
                       + ` · ${c.sections.length} section${c.sections.length === 1 ? '' : 's'}`}
+                    actions={
+                      <div className="row g6">
+                        <button type="button" className="btn ghost sm"
+                          onClick={() => setEditingWeek({ course: c, batchId: g.batchId })}
+                          title="Edit weekly availability">
+                          <Pencil className="ico-xs" />Edit
+                        </button>
+                        <button type="button" className="btn ghost icon sm" style={{ color: 'var(--rose-600)' }}
+                          onClick={() => setRemovingCourseWeek({ course: c, batchId: g.batchId })}
+                          aria-label={`Delete weekly availability for ${courseName(c.loopId)}`}>
+                          <Trash2 />
+                        </button>
+                      </div>
+                    }
                   >
                     {KINDS.map(part => {
                       const rows = part.kind === 'lecture' ? c.lectures : c.sections
@@ -971,6 +1078,10 @@ export function AvailabilityEditor() {
         <WindowForm rows={editing === 'new' ? null : editing.windows}
           onClose={() => setEditing(null)} onSaved={() => void load()} />
       )}
+      {editingWeek && (
+        <WindowForm rows={null} initialWeek={editingWeek}
+          onClose={() => setEditingWeek(null)} onSaved={() => void load()} />
+      )}
       {roster && <Roster hour={roster} onClose={() => { setRoster(null); void load() }} />}
       {removing && (
         <Confirm open onClose={() => setRemoving(null)}
@@ -983,6 +1094,83 @@ export function AvailabilityEditor() {
           body={`${daysLabel(removing.days)} · `
             + `${minToHHMM(removing.at.start_min)}–${minToHHMM(removing.at.end_min)}. `
             + 'Sittings already booked from it are unaffected.'} />
+      )}
+      {removingCourseWeek && (
+        <Confirm open onClose={() => setRemovingCourseWeek(null)}
+          onConfirm={() => {
+            const allIds = [...removingCourseWeek.course.lectures, ...removingCourseWeek.course.sections].map(w => w.id)
+            void Promise.all(allIds.map(deleteWindow)).then(() => {
+              setRemovingCourseWeek(null)
+              void load()
+            })
+          }}
+          title={`Delete weekly availability for ${courseName(removingCourseWeek.course.loopId)}?`}
+          body={`This will delete all ${removingCourseWeek.course.lectures.length} lecture and `
+            + `${removingCourseWeek.course.sections.length} section availability windows for this course.`} />
+      )}
+      {removingBatch && (
+        <Confirm open onClose={() => setRemovingBatch(null)}
+          onConfirm={() => {
+            const allIds = removingBatch.courses.flatMap(c => [...c.lectures, ...c.sections]).map(w => w.id)
+            void Promise.all(allIds.map(deleteWindow))
+              .then(async () => {
+                if (removingBatch.batchId) await deleteBatch(removingBatch.batchId)
+              })
+              .then(() => {
+                setRemovingBatch(null)
+                void load()
+                void reloadBatches()
+              })
+          }}
+          title={`Delete batch “${removingBatch.name}”?`}
+          body={`This will remove all published hours across ${removingBatch.courses.length} course${removingBatch.courses.length === 1 ? '' : 's'} and delete this batch.`} />
+      )}
+      {editingBatch && (
+        <Modal open onClose={() => setEditingBatch(null)}
+          title={`Edit batch · ${editingBatch.name}`}
+          footer={
+            <>
+              <span className="grow" />
+              <button className="btn" onClick={() => setEditingBatch(null)}>Cancel</button>
+              <button className="btn primary" onClick={async () => {
+                try {
+                  await saveBatch({
+                    id: editingBatch.id,
+                    loopId: editingBatch.loop_id,
+                    name: editingBatchName.trim() || editingBatch.name,
+                    startsOn: editingBatchStartsOn || editingBatch.starts_on,
+                    region: editingBatchRegion,
+                    seats: editingBatch.seats,
+                    status: editingBatch.status,
+                  })
+                  setEditingBatch(null)
+                  void load()
+                  void reloadBatches()
+                } catch (e) {
+                  setEditingBatchError(toMessage(e))
+                }
+              }}>Save</button>
+            </>
+          }>
+          <div className="stack g14">
+            {editingBatchError && <div className="auth-alert" role="alert"><span>{editingBatchError}</span></div>}
+            <Field label="Batch name">
+              <input className="inp" value={editingBatchName}
+                onChange={e => setEditingBatchName(e.target.value)} />
+            </Field>
+            <Field label="Starts on">
+              <input className="inp" type="date" value={editingBatchStartsOn}
+                onChange={e => setEditingBatchStartsOn(e.target.value)} />
+            </Field>
+            <Field label="Who it is for"
+              hint="Families are offered these hours only when their own clock says they are there. Everywhere offers them to all.">
+              <select className="sel" value={editingBatchRegion} onChange={e => setEditingBatchRegion(e.target.value)}>
+                <option value={ANYWHERE}>Everywhere</option>
+                {REGIONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+              </select>
+            </Field>
+          </div>
+        </Modal>
       )}
     </div>
   )

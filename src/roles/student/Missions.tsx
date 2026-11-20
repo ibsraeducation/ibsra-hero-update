@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BackLink } from '@/lib/backNav'
 import {
   BookOpen, CheckCircle2, ChevronRight, Circle, Clock, FileText, Folder,
-  GraduationCap, ListChecks, Loader, Lock, PlayCircle, Radio, Store, Video,
+  GraduationCap, Hammer, ListChecks, Loader, Lock, PlayCircle, Radio, Store, Video,
 } from 'lucide-react'
 import { sessionFlow, useStore } from '@/lib/store'
 import { Badge, Empty, Tabs } from '@/components/ui'
@@ -16,30 +16,31 @@ import {
   sessionPct, trackLoops, useMe,
 } from './useMe'
 import type { Done } from './useMe'
+import { COURSE_KIND_META, courseKind, courseLocked, SESSION_KIND_META, sessionKind } from '@/lib/types'
 import type { Loop, Session, Track } from '@/lib/types'
 import { backendLive } from '@/lib/supabase'
 import { ProgramOutcomes } from '@/components/ProgramOutcomes'
 import { programBlurb, programEyebrow } from '@/lib/programInfo'
-import { AREA_META, cap, inArea, trackArea, useArea, useNouns } from '@/lib/area'
 import { ProgramPicker } from '@/components/ProgramPicker'
 import { ProgramViewToggle } from '@/components/ViewToggle'
 
 /* ------------------------------------------------------------------ *
    Missions is a folder tree, three sections deep:
-     Program → Course → Sessions (topics), or, under Work,
-     Project → Milestone → Sessions — the same three, in that area's words.
-   Missions holds what the student is enrolled in. On the path view the rest
-   of the programs are shown too, greyed and pointing at the MarketPlace —
-   without them the path has no shape and a student cannot see where the
-   program they own actually leads. The grid view still lists only theirs.
+     Program → Course → Sessions (topics).
+   Missions holds what the student is enrolled in — training courses and work
+   courses alike, since Work stopped being a tree of its own. On the path view
+   the rest of the programs are shown too, greyed and pointing at the
+   MarketPlace — without them the path has no shape and a student cannot see
+   where the program they own actually leads. The grid view still lists only
+   theirs.
 
    Every section splits the same way, In progress / Finished, off the same
    derived progress — so the count on one level can never contradict the one
    above it.
-
-   Work (/student/work) is the same tree on the Work projects — where the
-   student works on their own assets. The two never share anything.
  * ------------------------------------------------------------------ */
+
+const STUDENT_BASE = '/student/missions'
+const STUDENT_LABEL = 'Missions'
 
 export function Crumbs({ trail }: { trail: Array<{ label: string; to?: string }> }) {
   return (
@@ -146,30 +147,28 @@ export function Missions() {
   const db = useStore(s => s.db)
   const done = useStore(s => s.done)
   const { trackIds } = useMe()
-  const area = useArea()
-  const { student: base } = AREA_META[area]
-  const nouns = useNouns()
+  const base = STUDENT_BASE
   const [slice, setSlice] = useState<Slice>('open')
 
   const view = useStore(s => s.programView)
 
   /* Only what the student is enrolled in. Everything else is a thing to buy,
      not a thing to open, so it belongs in MarketPlace → Training Programs. */
-  const rows = useMemo(() => db.tracks.filter(t => trackIds.includes(t.id) && inArea(area)(t)).map(t => {
+  const rows = useMemo(() => db.tracks.filter(t => trackIds.includes(t.id)).map(t => {
     const loops = trackLoops(db.loops, t.id)
     const per = loops.map(l => loopSessions(db.sessions, l.id))
     const open = per.flat().filter(isOpen).length
     const pct = per.length === 0 ? 0
       : Math.round(per.reduce((a, ss) => a + loopPct(ss, done), 0) / per.length)
     return { track: t, courses: loops.length, open, pct, finished: per.every(ss => loopDone(ss, done)) }
-  }), [db, trackIds, done, area])
+  }), [db, trackIds, done])
 
   const shown = rows.filter(r => (slice === 'done' ? r.finished : !r.finished))
   const nDone = rows.filter(r => r.finished).length
 
-  /* Every program in this area, so the path keeps its shape. The ones the
-     student does not own sit on it greyed, leading to where they are sold. */
-  const all = useMemo(() => db.tracks.filter(inArea(area)), [db.tracks, area])
+  /* Every program, so the path keeps its shape. The ones the student does
+     not own sit on it greyed, leading to where they are sold. */
+  const all = db.tracks
   const mine = useMemo(() => new Map(rows.map(r => [r.track.id, r])), [rows])
 
   /** Where a card on the path goes: into the program when it is the
@@ -194,13 +193,8 @@ export function Missions() {
   if (rows.length === 0) {
     return (
       <div className="page">
-        <PageHeader title={`Your ${nouns.track}`} />
-        {/* A Work project is not sold — a mentor puts the student on one. */}
-        {area === 'work' ? (
-          <Empty
-            icon={<Folder />}
-            title="No project yet" />
-        ) : backendLive ? (
+        <PageHeader title="Your program" />
+        {backendLive ? (
           <Empty
             icon={<Folder />}
             title="You are not enrolled in a course yet" />
@@ -218,7 +212,7 @@ export function Missions() {
   return (
     <div className="page">
       <PageHeader
-        title={`Your ${nouns.track}`}
+        title="Your program"
         actions={<ProgramViewToggle />}
       />
 
@@ -246,7 +240,7 @@ export function Missions() {
                   to={`${base}/${r.track.id}`}
                   cover={
                     <Cover bg={toneCover(r.track.color, r.track.id)} icon={GraduationCap}
-                      tag={cap(nouns.track)}
+                      tag="Program"
                       tail={r.pct === 100 ? <Badge tone="teal"><CheckCircle2 />Done</Badge> : undefined} />
                   }
                   eyebrow={programEyebrow(r.track)}
@@ -254,7 +248,7 @@ export function Missions() {
                   blurb={programBlurb(r.track)}
                   meter={r.pct}
                   facts={[
-                    `${r.courses} ${r.courses === 1 ? nouns.loop : nouns.loopPlural}`,
+                    `${r.courses} ${r.courses === 1 ? 'course' : 'courses'}`,
                     `${r.open} session${r.open === 1 ? '' : 's'} open`,
                   ]}
                 />
@@ -284,9 +278,8 @@ export function MissionTrack() {
   const db = useStore(s => s.db)
   const done = useStore(s => s.done)
   const { loopIds, trackIds } = useMe()
-  const area = useArea()
-  const { student: base, studentLabel } = AREA_META[area]
-  const nouns = useNouns()
+  const base = STUDENT_BASE
+  const studentLabel = STUDENT_LABEL
   const [slice, setSlice] = useState<Slice>('open')
 
   const track: Track | undefined = db.tracks.find(t => t.id === trackId)
@@ -308,11 +301,6 @@ export function MissionTrack() {
           action={back} />
       </div>
     )
-  }
-
-  /* A program opened under the other area moves to its own. */
-  if (trackArea(track) !== area) {
-    return <Navigate to={`${AREA_META[trackArea(track)].student}/${track.id}`} replace />
   }
 
   /* Reached by URL rather than by a card — the program exists, it just is not
@@ -344,33 +332,35 @@ export function MissionTrack() {
 
       <ProgramOutcomes track={track} />
 
-      <Slicer value={slice} onChange={setSlice} open={rows.length - nDone} done={nDone} unit={nouns.loop} />
+      <Slicer value={slice} onChange={setSlice} open={rows.length - nDone} done={nDone} unit="course" />
 
       {rows.length === 0 ? (
-        <Empty icon={<Folder />} title={`No ${nouns.loopPlural} yet`}
+        <Empty icon={<Folder />} title={`No courses yet`}
  />
       ) : shown.length === 0 ? (
-        <NothingHere side={slice} what={nouns.loop} />
+        <NothingHere side={slice} what="course" />
       ) : (
         <div className="folder-grid">
           {shown.map(r => {
             const mine = loopIds.includes(r.loop.id)
-            const locked = r.open.length === 0 && !mine
+            const locked = (r.open.length === 0 && !mine) || courseLocked(track, r.loop)
             return (
             <FolderCard
               key={r.loop.id}
               to={`${base}/${track.id}/${r.loop.id}`}
               locked={locked}
               cover={
-                <Cover bg={toneCover(track.color, r.loop.id)} icon={BookOpen} dim={locked}
-                  tag={`${cap(nouns.loop)} · ${r.loop.code}`} big={String(r.loop.index).padStart(2, '0')}
+                <Cover bg={toneCover(track.color, r.loop.id)} dim={locked}
+                  icon={courseKind(r.loop) === 'work' ? Hammer : BookOpen}
+                  tag={`${COURSE_KIND_META[courseKind(r.loop)].short} · ${r.loop.code}`}
+                  big={String(r.loop.index).padStart(2, '0')}
                   tail={locked
                     ? <Badge tone="line"><Lock />Locked</Badge>
                     : r.open.length > 0 && r.pct === 100
                       ? <Badge tone="teal"><CheckCircle2 />Done</Badge>
                       : mine ? <Badge tone="brand">Enrolled</Badge> : undefined} />
               }
-              eyebrow={mine ? 'Enrolled · in progress' : r.loop.status === 'planning' ? 'Not started' : cap(nouns.loop)}
+              eyebrow={mine ? 'Enrolled · in progress' : r.loop.status === 'planning' ? 'Not started' : 'Course'}
               name={r.loop.name}
               blurb={`${date(r.loop.startDate)} – ${date(r.loop.endDate)} · ${r.loop.code}`}
               meter={r.open.length > 0 ? r.pct : undefined}
@@ -389,9 +379,12 @@ export function MissionTrack() {
 
 /* ---------------- section 3 · sessions (topics) inside a course ---------------- */
 
-function SessionCard({ session, index, tone, done }: {
-  session: Session; index: number; tone: string; done: Done
+function SessionCard({ session, loop, index, tone, done }: {
+  session: Session; loop: Loop; index: number; tone: string; done: Done
 }) {
+  /* A build week reads as one on the card. The course sets the default and
+     the session overrides it, so this is right in a hybrid course too. */
+  const kind = sessionKind(session, loop)
   const nav = useNavigate()
   const open = isOpen(session)
   const pct = sessionPct(session, done)
@@ -423,9 +416,11 @@ function SessionCard({ session, index, tone, done }: {
     >
       <Cover
         bg={sessionCover(session, tone)}
-        icon={session.type === 'live' ? Radio : PlayCircle}
+        icon={kind === 'work' ? Hammer : session.type === 'live' ? Radio : PlayCircle}
         dim={!open}
-        tag={session.type === 'live' ? 'Live session' : 'Session'}
+        tag={kind === 'work'
+          ? SESSION_KIND_META.work.label
+          : session.type === 'live' ? 'Live session' : 'Session'}
         big={String(index + 1).padStart(2, '0')}
         tail={!open
           ? <Badge tone="line"><Lock />{session.scheduledAt ? `Opens ${date(session.scheduledAt)}` : 'Not open'}</Badge>
@@ -490,9 +485,8 @@ export function MissionLoop() {
   const db = useStore(s => s.db)
   const done = useStore(s => s.done)
   const [slice, setSlice] = useState<Slice>('open')
-  const area = useArea()
-  const { student: base, studentLabel } = AREA_META[area]
-  const nouns = useNouns()
+  const base = STUDENT_BASE
+  const studentLabel = STUDENT_LABEL
 
   const track = db.tracks.find(t => t.id === trackId)
   const loop = db.loops.find(l => l.id === loopId)
@@ -501,14 +495,10 @@ export function MissionLoop() {
   if (!track || !loop) {
     return (
       <div className="page">
-        <Empty icon={<Folder />} title={`${cap(nouns.loop)} not found`}
+        <Empty icon={<Folder />} title={`Course not found`}
           action={<BackLink className="btn" to={base}>Back to {studentLabel.toLowerCase()}</BackLink>} />
       </div>
     )
-  }
-
-  if (trackArea(track) !== area) {
-    return <Navigate to={`${AREA_META[trackArea(track)].student}/${track.id}/${loop.id}`} replace />
   }
 
   /* A locked session is not finished — it is not even started, so it sits on
@@ -540,6 +530,7 @@ export function MissionLoop() {
             <SessionCard
               key={s.id}
               session={s}
+              loop={loop}
               index={sessions.indexOf(s)}
               tone={track.color}
               done={done}

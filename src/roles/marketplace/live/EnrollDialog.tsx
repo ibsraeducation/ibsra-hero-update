@@ -19,7 +19,8 @@ import { toMessage } from '@/lib/api/errors'
 import { fetchMyRequests, requestWithTimes } from '@/lib/api/requests'
 import type { AccessRequestRow } from '@/lib/api/rows'
 import {
-  EMPTY_BILLING, fetchBilling, fetchSubscriptions, offeredPlans, openChannels, planPrice, qrUrl,
+  amountToSend, EMPTY_BILLING, fetchBilling, fetchSubscriptions, METHOD_FEE_PCT, offeredPlans,
+  openChannels, planPrice, qrUrl,
 } from '@/lib/api/billing'
 import { fetchMyPayments, fetchPayAccounts } from '@/lib/api/family'
 import { fetchWallet, payFromWallet } from '@/lib/api/wallet'
@@ -41,7 +42,7 @@ import {
 } from '@/lib/enrolTimes'
 import { ProgramRun } from '@/components/ProgramRun'
 import { fetchBatchRegions, fetchOfferedWindows, occurrencesFor } from '@/lib/api/schedule'
-import { inViewerRegion, REGIONS, viewerRegion } from '@/lib/region'
+import { batchOpenTo, inViewerRegion, REGIONS, viewerRegion } from '@/lib/region'
 import { CAIRO, dayIn, formatInTz, viewerTz, WEEKDAYS } from '@/lib/time'
 import type { AvailabilityWindowRow, WindowOccurrenceRow } from '@/lib/api/rows'
 import { money, SUPPORT_WHATSAPP, whatsappLink } from '@/lib/format'
@@ -140,7 +141,7 @@ function Volume({ label, range, value, step, mini, onChange }: {
 function NoLength({ what }: { what: string }) {
   return (
     <span className="ef-hint" style={{ marginTop: 8 }}>
-      No single {what} length runs on every day you picked — the hours open on
+      No single {what} length runs on every day you picked ΓÇö the hours open on
       those days do not overlap. Go back and pick other days, or ask us below.
     </span>
   )
@@ -148,7 +149,7 @@ function NoLength({ what }: { what: string }) {
 
 /** How many intakes are run for a country, for the line under its button. */
 function intakesIn(regions: Map<string, string>, code: string): string {
-  const n = [...regions.values()].filter(r => r === code).length
+  const n = [...regions.values()].filter(r => batchOpenTo(r, code)).length
   return n ? `${n} intake${n === 1 ? '' : 's'}` : 'nothing open yet'
 }
 
@@ -205,7 +206,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
   const [error, setError] = useState<string | null>(null)
 
   /* Where the family says they are. The clock their browser is set to is
-     a first guess at it, never the answer — they say. */
+     a first guess at it, never the answer ΓÇö they say. */
   const [region, setRegion] = useState<string | null>(() => viewerRegion())
   const [batchRegions, setBatchRegions] = useState<Map<string, string>>(new Map())
   const [allWindows, setAllWindows] = useState<AvailabilityWindowRow[] | null>(null)
@@ -257,7 +258,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
   const sessions = useStore(s => s.db.sessions)
   const course = courses[0] ?? null
   const firstName = child?.profile.name?.split(' ')[0] || 'your hero'
-  const whose = self ? 'your' : `${firstName}’s`
+  const whose = self ? 'your' : `${firstName}ΓÇÖs`
 
   useEffect(() => {
     if (!course) return
@@ -267,7 +268,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
        that answer costs nothing. */
     void Promise.all([
       fetchOfferedWindows({ loopId: course.id, trackId: track.id, region: 'all' }),
-      fetchBatchRegions().catch(() => new Map<string, string>()),
+      fetchBatchRegions(course.id).catch(() => new Map<string, string>()),
     ])
       .then(async ([ws, regions]) => {
         if (!live) return
@@ -344,7 +345,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
   const ask: WeekAsk = { lectures, sections }
   const askWrong = askProblem(ask)
     ?? (lectures.length !== lecDays.length
-      ? 'One of those days has no lecture time left at that length — pick another.'
+      ? 'One of those days has no lecture time left at that length ΓÇö pick another.'
       : null)
   const totalHours = programHours(courses, sessions)
 
@@ -402,7 +403,12 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
   useEffect(() => {
     if (channels.length && !channels.includes(method)) setMethod(channels[0])
   }, [channels, method])
-  useEffect(() => { if (price != null) setAmount(String(price)) }, [price])
+  /* What the family actually transfers: the price, plus whatever the channel
+     they picked takes off it on the way. Switching channel re-quotes it. */
+  const fee = METHOD_FEE_PCT[method] ?? 0
+  const due = price == null ? null : amountToSend(price, method)
+
+  useEffect(() => { if (due != null) setAmount(String(due)) }, [due])
 
   const steps: StepKey[] = [
     'where', 'about', 'values', 'who', ...SCHEDULE_STEPS,
@@ -523,7 +529,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
           <span className="ef-done-title">Thank you!</span>
           <p className="ef-done-body">
             {sent.paid === 'wallet'
-              ? <>Paid from your wallet — the program is open on Material now.</>
+              ? <>Paid from your wallet ΓÇö the program is open on Material now.</>
               : sent.paid === 'direct'
                 ? <>We received your payment. The admin will confirm it, and the program opens
                     the moment they do.</>
@@ -590,7 +596,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
       onClose={close}
       className="ef-modal"
       title={track.name}
-      description={`Step ${step + 1} of ${total} · ${STEP_LABEL[key]}`}
+      description={`Step ${step + 1} of ${total} ┬╖ ${STEP_LABEL[key]}`}
       footer={
         <>
           {(step > 0 || adding) && (
@@ -645,7 +651,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                   <div className="ef-panel-body">
                     {valueShown
                       ? <Outline nodes={outcome.nodes[valueShown]} />
-                      : <p className="c-muted2">The admin has not listed this program’s values and skills yet.</p>}
+                      : <p className="c-muted2">The admin has not listed this programΓÇÖs values and skills yet.</p>}
                   </div>
                 </>
               )}
@@ -658,13 +664,16 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
             <div className="ef-row">
               <span className="ef-q">Where are you?</span>
               <span className="ef-hint">
-                Every intake is taught at hours that suit one part of the world. Tell us yours
-                and we will only show you times you can actually sit in.
+                This only sets your time zone ΓÇö we read the clock from it so session times
+                show in your hours. Pick the country you are in.
               </span>
               <div className="ef-days" style={{ marginTop: 6 }}>
-                {REGIONS.map(r => (
+                {REGIONS.filter(r => r.code === 'EG' || r.code === 'SA' || r.code === 'CA')
+                  .map(r => (
                   <button key={r.code} type="button" className="ef-day-btn"
-                    data-on={region === r.code} onClick={() => setRegion(r.code)}>
+                    data-on={region === r.code || undefined}
+                    aria-pressed={region === r.code}
+                    onClick={() => setRegion(r.code)}>
                     <b>{r.label}</b>
                     <span>{intakesIn(batchRegions, r.code)}</span>
                   </button>
@@ -709,7 +718,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                             c.profile.age ? `${c.profile.age} years old` : null,
                             c.profile.national_id ? `ID ${c.profile.national_id}` : null,
                             c.profile.whatsapp ?? c.profile.phone,
-                          ].filter(Boolean).join(' · ') || c.profile.email}
+                          ].filter(Boolean).join(' ┬╖ ') || c.profile.email}
                         </span>
                       </span>
                       {child?.profile.id === c.profile.id && <Check />}
@@ -739,7 +748,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                       : !anyLecture.length
                         ? 'The admin has not published lecture hours for it.'
                         : 'The admin has not published section hours for it.'}
-                    {' '}It can also be that the hours open for it are run somewhere else — an
+                    {' '}It can also be that the hours open for it are run somewhere else ΓÇö an
                     intake is taught for one part of the world at a time. Either way, message us
                     and we will open a time that suits you.
                   </span>
@@ -754,7 +763,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                   <div className="ef-row">
                     <span className="ef-q">Which days for the lecture?</span>
                     <span className="ef-hint">
-                      Learn — with the instructor. One day a week, or two; these are the days
+                      Learn ΓÇö with the instructor. One day a week, or two; these are the days
                       {' '}{whose} course is taught on. The hour comes next.
                     </span>
                     <div className="ef-days">
@@ -779,7 +788,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                       {lecDays.length === 0 ? 'Pick one day, or two.'
                         : lecDays.length === 1
                           ? 'One day picked. Add a second for two lectures a week, or carry on.'
-                          : 'Two days picked — that is the most a week holds.'}
+                          : 'Two days picked ΓÇö that is the most a week holds.'}
                     </span>
                   </div>
                 )}
@@ -813,10 +822,10 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                                   <button key={x.key} type="button" className="ef-slot" data-on={on}
                                     onClick={() => setLec(d, x.key)}>
                                     <span className="stack grow">
-                                      <b>{clock(x.startMin)}–{clock(x.endMin)}</b>
+                                      <b>{clock(x.startMin)}ΓÇô{clock(x.endMin)}</b>
                                       <span>
                                         {minutesLabel(x.endMin - x.startMin)}
-                                        {x.mentor ? ` · ${x.mentor}` : ''}
+                                        {x.mentor ? ` ┬╖ ${x.mentor}` : ''}
                                       </span>
                                       {datesLine(x.startMin, dates[x.windowId]) && (
                                         <span className="ef-dates">
@@ -842,7 +851,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                   <div className="ef-row">
                     <span className="ef-q">Which days for the sections?</span>
                     <span className="ef-hint">
-                      Execute — building the projects. A section never lands on a day the
+                      Execute ΓÇö building the projects. A section never lands on a day the
                       lecture takes, so those are out.
                     </span>
 
@@ -851,7 +860,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                       {lectures.map(l => (
                         <span key={l.day} className="ef-chosen-row">
                           <b>{WEEKDAYS[l.day]}</b>
-                          <span>{clock(l.start)}–{clock(l.start + l.min)}</span>
+                          <span>{clock(l.start)}ΓÇô{clock(l.start + l.min)}</span>
                         </span>
                       ))}
                     </div>
@@ -921,7 +930,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                                       data-on={on?.key === x.key}
                                       title={x.mentor ? `with ${x.mentor}` : undefined}
                                       onClick={() => setSec(d, x.key)}>
-                                      {clock(x.startMin)}–{clock(x.endMin)}
+                                      {clock(x.startMin)}ΓÇô{clock(x.endMin)}
                                       {on?.key === x.key && <Check />}
                                     </button>
                                   ))}
@@ -959,7 +968,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                       <button key={p} type="button" role="radio" aria-checked={plan === p}
                         data-on={plan === p} onClick={() => setPlan(p)}>
                         {PLAN_LABEL[p]}
-                        {p === 'quarterly' && savingPct > 0 && <em>−{savingPct}%</em>}
+                        {p === 'quarterly' && savingPct > 0 && <em>ΓêÆ{savingPct}%</em>}
                       </button>
                     ))}
                   </div>
@@ -981,7 +990,7 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                     </button>
                     <button type="button" data-on={way === 'direct'} onClick={() => setWay('direct')}>
                       <b>Pay directly</b>
-                      <span>InstaPay · Vodafone</span>
+                      <span>InstaPay ┬╖ Vodafone</span>
                     </button>
                   </div>
                 </div>
@@ -1016,7 +1025,14 @@ export function EnrollDialog({ track, courses, onClose, onDone }: {
                 <p className="ef-hint" style={{ textAlign: 'center' }}>No way of paying is open right now.</p>
               ) : (
                 <div className="ef-channel" key={method}>
-                  <span className="ef-hint">Send <b className="c-ink2">{money(price ?? 0)}</b></span>
+                  <span className="ef-hint">Send <b className="c-ink2">{money(due ?? 0)}</b></span>
+                  {fee > 0 && (
+                    <span className="ef-fee">
+                      {money(price ?? 0)} for the subscription, and the {fee}% {PAY_METHOD_LABEL[method]}
+                      {' '}takes off a transfer.
+                    </span>
+                  )}
+
                   {qr && <img className="ef-qr" src={qr} alt={`${PAY_METHOD_LABEL[method]} QR code`} />}
                   {channelLink && (
                     <a className="btn" href={channelLink} target="_blank" rel="noopener noreferrer">

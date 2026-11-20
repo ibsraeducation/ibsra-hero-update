@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Clock, Layers } from 'lucide-react'
 import { Empty, Segmented, Tabs } from '@/components/ui'
 import { Calendar, type CalEvent } from '@/components/Calendar'
-import { fetchBatches, fetchBookings, fetchStudentNames, windowGrid } from '@/lib/api/schedule'
+import { fetchBookings, fetchStudentNames, windowGrid } from '@/lib/api/schedule'
 import { pickProgram, programsOf, trackOfLoop } from '@/lib/calendarPrograms'
 import { toMessage } from '@/lib/api/errors'
 import { mins } from '@/lib/format'
@@ -83,7 +83,8 @@ export function CalendarPanel() {
   const [booked, setBooked] = useState<Tagged[] | null>(null)
   const [rows, setRows] = useState<AttendanceRow[]>([])
   const [open, setOpen] = useState<Tagged[]>([])
-  const [batches, setBatches] = useState<CourseBatchRow[]>([])
+  const batches = useStore(s => s.batches)
+  const reloadBatches = useStore(s => s.reloadBatches)
   const [kind, setKind] = useState<KindFilter>('all')
   const [program, setProgram] = useState('')
   const [batch, setBatch] = useState<BatchFilter>('')
@@ -105,12 +106,10 @@ export function CalendarPanel() {
       const iso = (ms: number) => new Date(ms).toISOString()
       const day = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 
-      const [rows, grid, bs] = await Promise.all([
+      const [rows, grid] = await Promise.all([
         fetchBookings({ from: iso(fromMs), to: iso(toMs) }),
         windowGrid(day(Date.now()), day(toMs)),
-        fetchBatches(),
       ])
-      setBatches(bs)
 
       const names = await fetchStudentNames(rows.map(b => b.student_id))
       setRows(rows.map(b => ({ ...b, hero: names[b.student_id] ?? 'Hero' })))
@@ -146,7 +145,7 @@ export function CalendarPanel() {
     }
   }, [courseLabel])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(); void reloadBatches() }, [load, reloadBatches])
 
   /* The programs on the grid, and the one being read. Open windows count
      too: "where is there still room on this program" is the question. */

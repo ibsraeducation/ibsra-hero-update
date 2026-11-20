@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Radio, Video } from 'lucide-react'
+import { ChevronLeft, Lock, Radio, Video } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { VideoEmbed } from '@/components/VideoEmbed'
 import { ProgramOutcomes } from '@/components/ProgramOutcomes'
@@ -42,6 +42,7 @@ export function ProgramPage({ audience }: { audience: 'parent' | 'student' }) {
   const [cat, setCat] = useState<Catalogue | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [enrolling, setEnrolling] = useState(false)
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('')
 
   useEffect(() => {
     let live = true
@@ -84,37 +85,51 @@ export function ProgramPage({ audience }: { audience: 'parent' | 'student' }) {
         <Empty icon={<Video />} title="Nothing built yet" />
       ) : (
         <div className="stack g14">
-          {courses.map(c => {
-            const nodes = parseOutline(c.overview ?? '')
-            const sessions = sessionsOf(c.id)
-            return (
-              <details key={c.id} className="card" open={c.index === 1}>
-                <summary className="card-head" style={{ cursor: 'pointer' }}>
-                  <span className="row g10">
-                    <Badge tone="brand">{c.index}</Badge>
-                    <span className="t-md w-sb">{c.name}</span>
-                    {c.startDate && c.endDate && <span className="t-xs c-muted2">{span(c.startDate, c.endDate)}</span>}
-                  </span>
-                </summary>
-                <div className="card-body stack g14">
-                  {c.videoUrl && <div style={{ maxWidth: 520 }}><VideoEmbed url={c.videoUrl} title={c.name} /></div>}
-                  {nodes.length > 0 && <Outline nodes={nodes} />}
-                  {sessions.length > 0 && (
-                    <div className="stack g8">
-                      {sessions.map(s => (
-                        <div key={s.id} className="row g10" style={{ padding: '8px 0', borderTop: '1px solid var(--line)' }}>
-                          {s.type === 'live' ? <Radio className="ico-xs" /> : <Video className="ico-xs" />}
-                          <span className="t-sm grow">{s.name}</span>
-                          {s.durationMin > 0 && <span className="t-xs c-muted2">{mins(s.durationMin)}</span>}
-                          {s.videoUrl && <span className="badge line sm">Preview</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </details>
-            )
-          })}
+          {(() => {
+            const activeCourse = courses.find(c => c.id === selectedCourseId) ?? courses[0]
+            const activeIndex = activeCourse?.index ?? 1
+            return courses.map(c => {
+              const nodes = parseOutline(c.overview ?? '')
+              const sessions = sessionsOf(c.id)
+              const isLocked = c.index > activeIndex
+              return (
+                <details key={c.id} className={`card ${isLocked ? 'course-locked-card' : ''}`}
+                  open={!isLocked && c.id === activeCourse?.id}>
+                  <summary className="card-head" style={{ cursor: isLocked ? 'not-allowed' : 'pointer' }}
+                    onClick={e => {
+                      if (isLocked) { e.preventDefault(); return }
+                      setSelectedCourseId(c.id)
+                    }}>
+                    <span className="row g10 wrap">
+                      <Badge tone={isLocked ? 'line' : 'brand'}>{c.index}</Badge>
+                      <span className="t-md w-sb">{c.name}</span>
+                      {isLocked ? (
+                        <Badge tone="line"><Lock style={{ width: 12, height: 12 }} />Locked</Badge>
+                      ) : (
+                        c.startDate && c.endDate && <span className="t-xs c-muted2">{span(c.startDate, c.endDate)}</span>
+                      )}
+                    </span>
+                  </summary>
+                  <div className="card-body stack g14">
+                    {c.videoUrl && <div style={{ maxWidth: 520 }}><VideoEmbed url={c.videoUrl} title={c.name} /></div>}
+                    {nodes.length > 0 && <Outline nodes={nodes} />}
+                    {sessions.length > 0 && (
+                      <div className="stack g8">
+                        {sessions.map(s => (
+                          <div key={s.id} className="row g10" style={{ padding: '8px 0', borderTop: '1px solid var(--line)' }}>
+                            {s.type === 'live' ? <Radio className="ico-xs" /> : <Video className="ico-xs" />}
+                            <span className="t-sm grow">{s.name}</span>
+                            {s.durationMin > 0 && <span className="t-xs c-muted2">{mins(s.durationMin)}</span>}
+                            {s.videoUrl && <span className="badge line sm">Preview</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              )
+            })
+          })()}
         </div>
       )}
 

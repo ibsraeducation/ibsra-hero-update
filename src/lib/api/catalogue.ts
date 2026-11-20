@@ -35,8 +35,8 @@ export interface Catalogue {
 }
 
 /** Everything a family or a student may browse before they are enrolled in
- *  anything. Work programs and unlisted programs are left out here — the
- *  same discipline the admin's own listing switch already enforces. */
+ *  anything. An unlisted program is left out here — the same discipline the
+ *  admin's own listing switch already enforces. */
 export async function fetchCatalogue(): Promise<Catalogue> {
   const [tracksRes, loopsRes, sessionsRes] = await Promise.all([
     sb().from('tracks').select('*').order('created_at', { ascending: true }),
@@ -49,7 +49,7 @@ export async function fetchCatalogue(): Promise<Catalogue> {
 
   const tracks = ((tracksRes.data ?? []) as TrackRow[])
     .map(trackFromRow)
-    .filter(t => t.area !== 'work' && (t.listed ?? true))
+    .filter(t => t.listed ?? true)
   const trackIds = new Set(tracks.map(t => t.id))
 
   const loops = ((loopsRes.data ?? []) as LoopRow[])

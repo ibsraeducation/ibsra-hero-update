@@ -23,6 +23,7 @@ import { toMessage } from '@/lib/api/errors'
 import { dateFull } from '@/lib/format'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge, Empty } from '@/components/ui'
+import { SESSION_KIND_META } from '@/lib/types'
 import type { MentorFeedbackRow } from '@/lib/api/rows'
 import { ChildPicker } from './ChildPicker'
 import { markProjects, markSessions, summary, type SessionMark } from './feedbackModel'
@@ -228,8 +229,15 @@ export function ParentFeedback() {
                       </span>
                       <span className="stack g2 grow" style={{ minWidth: 0 }}>
                         <span className="t-sm w-med truncate">{p.name}</span>
-                        <span className="t-xs c-muted2 truncate">
-                          {p.loopName}{p.loopName && p.sessionName ? ' · ' : ''}{p.sessionName}
+                        <span className="row g6 t-xs c-muted2" style={{ minWidth: 0 }}>
+                          {/* Which kind of course it came out of — a training
+                              project, or one built in a work course. */}
+                          <Badge tone={SESSION_KIND_META[p.kind].tone}>
+                            {SESSION_KIND_META[p.kind].project}
+                          </Badge>
+                          <span className="truncate">
+                            {p.loopName}{p.loopName && p.sessionName ? ' · ' : ''}{p.sessionName}
+                          </span>
                         </span>
                         {p.state === 'building' && (
                           <span className="meter" style={{ maxWidth: 160 }}>

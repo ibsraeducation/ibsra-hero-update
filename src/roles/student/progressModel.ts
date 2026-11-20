@@ -1,8 +1,8 @@
 /* ==========================================================================
    Student · My Progress — what the student's own record says.
 
-   One area at a time (Learning or Work), derived from rows the student
-   themselves wrote. Nothing here is estimated and nothing is a promise:
+   Derived from rows the student themselves wrote. Nothing here is estimated
+   and nothing is a promise:
 
      attendance   a session they turned up to is one they opened — any step
                   ticked, or any answer handed in. A session that has not
@@ -14,16 +14,14 @@
                   student meets them: finished, being built now, or still to
                   start.
 
-   The same three readings roll up to the totals over the tab. Both tabs run
-   through here — only the area changes.
+   The same three readings roll up to the totals over the page.
    ========================================================================== */
 
 import { useMemo } from 'react'
 import { sessionFlow, useStore } from '@/lib/store'
 import { useSubmissions, type MySubmission } from '@/lib/api/submissions'
-import { inArea } from '@/lib/area'
-import { titleKind, titleState } from '@/lib/types'
-import type { ContentArea, Loop, Session, Track } from '@/lib/types'
+import { sessionKind, titleKind, titleState } from '@/lib/types'
+import type { Loop, Session, SessionKind, Track } from '@/lib/types'
 import { useMe } from './useMe'
 
 export type Done = Record<string, string[]>
@@ -37,7 +35,7 @@ export type ProjectState = 'done' | 'building' | 'soon'
 export interface SessionMark {
   id: string
   name: string
-  /** "S1", "S2" — the label under the columns. */
+  /** "Session 1", "Session 2" — the label under the columns. */
   short: string
   loopId: string
   loopName: string
@@ -66,6 +64,10 @@ export interface ProjectMark {
   sessionId: string
   sessionName: string
   loopName: string
+  /** Which kind of session it sits in — a training project, or a production
+   *  project in a work session. Read through `sessionKind`, so a session
+   *  that never set one reads as its course. */
+  kind: SessionKind
   when: string | null
   stepsTotal: number
   stepsDone: number
@@ -103,8 +105,7 @@ export interface CourseRow {
   score: number | null
 }
 
-export interface AreaProgress {
-  area: ContentArea
+export interface Progress {
   tracks: Track[]
   loops: Loop[]
   marks: SessionMark[]
@@ -144,7 +145,7 @@ export function markSession(
   return {
     id: s.id,
     name: s.name,
-    short: `S${order}`,
+    short: `Session ${order}`,
     loopId: s.loopId,
     loopName,
     live: s.type === 'live',
@@ -173,6 +174,7 @@ export function markSessions(
 export function markProjects(sessions: Session[], loops: Loop[], done: Done): ProjectMark[] {
   const out: ProjectMark[] = []
   for (const s of sortByPath(sessions, loops)) {
+    const loop = loops.find(l => l.id === s.loopId)
     const steps = sessionFlow(s)
     const hit = done[s.id] ?? []
     for (const t of s.titles) {
@@ -187,7 +189,8 @@ export function markProjects(sessions: Session[], loops: Loop[], done: Done): Pr
         name: t.name || 'Untitled project',
         sessionId: s.id,
         sessionName: s.name,
-        loopName: loops.find(l => l.id === s.loopId)?.name ?? '',
+        loopName: loop?.name ?? '',
+        kind: sessionKind(s, loop),
         when: s.scheduledAt ?? null,
         stepsTotal: own.length,
         stepsDone,
@@ -238,9 +241,9 @@ export function totalsOf(marks: SessionMark[], projects: ProjectMark[]): Totals 
 
 /* ---------------- the hook ---------------- */
 
-/** One tab's worth of record: the student's own courses in that area, and
- *  every reading taken off them. */
-export function useAreaProgress(area: ContentArea): AreaProgress {
+/** The student's own courses — training and work alike — and every reading
+ *  taken off them. */
+export function useProgress(): Progress {
   const db = useStore(s => s.db)
   const done = useStore(s => s.done)
   const mine = useSubmissions(s => s.mine)
@@ -248,11 +251,10 @@ export function useAreaProgress(area: ContentArea): AreaProgress {
 
   return useMemo(() => {
     const byTrack = new Map(db.tracks.map(t => [t.id, t]))
-    const keep = inArea(area)
     const loops = db.loops
       .filter(l => {
         const t = byTrack.get(l.trackId)
-        return loopIds.includes(l.id) && !!t && keep(t)
+        return loopIds.includes(l.id) && !!t
       })
       .sort((a, b) => a.index - b.index)
     const ids = new Set(loops.map(l => l.id))
@@ -280,6 +282,6 @@ export function useAreaProgress(area: ContentArea): AreaProgress {
       }
     })
 
-    return { area, tracks, loops, marks, projects, totals: totalsOf(marks, projects), courses }
-  }, [db, done, mine, loopIds, area])
+    return { tracks, loops, marks, projects, totals: totalsOf(marks, projects), courses }
+  }, [db, done, mine, loopIds])
 }

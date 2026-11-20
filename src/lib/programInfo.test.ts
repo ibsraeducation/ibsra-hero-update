@@ -56,6 +56,7 @@ describe('program info', () => {
       /* Not for sale until the admin puts a price on it. */
       price_egp: null,
       listed: true,
+      locked: false,
       /* Where it sits on the path, and the lines out of it. Unset means the
          column is read off those lines. */
       stage: null,

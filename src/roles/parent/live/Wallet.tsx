@@ -15,13 +15,13 @@ import {
   Plus, Smartphone, Wallet as WalletIcon,
 } from 'lucide-react'
 import { fetchPayAccounts } from '@/lib/api/family'
-import { chargeWallet, fetchPendingTopUps, fetchWallet, fetchWalletEntries } from '@/lib/api/wallet'
+import { chargeWallet, fetchPendingTopUps, fetchRejectedTopUps, fetchWallet, fetchWalletEntries } from '@/lib/api/wallet'
 import { toMessage } from '@/lib/api/errors'
 import { useAuth } from '@/lib/auth'
 import { useStore } from '@/lib/store'
 import { dateTime, money } from '@/lib/format'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge, Empty, Field } from '@/components/ui'
+import { Badge, Empty, Field, Modal } from '@/components/ui'
 import {
   PAY_METHOD_LABEL,
   type PayAccountsRow, type PaymentRow, type PayMethod, type WalletEntryRow, type WalletRow,
@@ -48,6 +48,7 @@ export function ParentWallet() {
   const [wallet, setWallet] = useState<WalletRow | null>(null)
   const [entries, setEntries] = useState<WalletEntryRow[]>([])
   const [waiting, setWaiting] = useState<PaymentRow[]>([])
+  const [rejected, setRejected] = useState<PaymentRow[]>([])
   const [accounts, setAccounts] = useState<PayAccountsRow | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -64,13 +65,15 @@ export function ParentWallet() {
     if (!profile) return
     try {
       setLoadError(null)
-      const [w, list, pending, acc] = await Promise.all([
+      const [w, list, pending, acc, turnedDown] = await Promise.all([
         fetchWallet(profile.id), fetchWalletEntries(), fetchPendingTopUps(), fetchPayAccounts(),
+        fetchRejectedTopUps(),
       ])
       setWallet(w)
       setEntries(list)
       setWaiting(pending)
       setAccounts(acc)
+      setRejected(turnedDown)
     } catch (e) {
       setLoadError(toMessage(e))
       setWallet({ parent_id: profile.id, balance_egp: 0, updated_at: '' })
@@ -160,74 +163,65 @@ export function ParentWallet() {
         </section>
 
         {/* ---- charging it ---- */}
-        {open && (
-          <section className="card">
-            <div className="pd-col">
-              <h2 className="pd-col-head"><Plus />Charge the wallet</h2>
-              <p className="t-xs c-muted2" style={{ lineHeight: 1.6 }}>
-                Send the amount to one of these, then tell us about the transfer. The admin checks
-                it and your balance goes up — nothing is spent until you pay for a student.
-              </p>
+        <Modal open={open} onClose={() => setOpen(false)} title="Charge the wallet"
+          description="Send the money, then file the transfer. The admin checks it and your balance goes up.">
+          <div className="stack g14" style={{ maxWidth: 560 }}>
+            <PayWhere accounts={accounts} />
 
-              <PayWhere accounts={accounts} />
+            {error && <div className="auth-alert" role="alert"><AlertTriangle /><span>{error}</span></div>}
 
-              {error && <div className="auth-alert" role="alert"><AlertTriangle /><span>{error}</span></div>}
-
-              <div className="stack g14" style={{ maxWidth: 560 }}>
-                <Field label="How much you sent (EGP)">
-                  <div className="stack g8">
-                    <input className="inp" type="number" min={1} value={amount}
-                      onChange={e => setAmount(e.target.value)} style={{ maxWidth: 200 }} />
-                    <div className="row g6 wrap">
-                      {QUICK.map(q => (
-                        <button key={q} type="button" className="role-pill" data-on={amount === String(q)}
-                          onClick={() => setAmount(String(q))}>{money(q)}</button>
-                      ))}
-                    </div>
-                  </div>
-                </Field>
-
-                <Field label="How you sent it">
-                  <div className="row g8 wrap">
-                    {METHODS.map(m => (
-                      <button key={m.value} type="button" className="role-pill" data-on={method === m.value}
-                        onClick={() => setMethod(m.value)}>
-                        <m.icon />{PAY_METHOD_LABEL[m.value]}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-
-                <Field
-                  label={method === 'instapay' ? 'The InstaPay address you sent from' : 'The number you sent from'}
->
-                  <input className="inp" value={senderRef} onChange={e => setSenderRef(e.target.value)}
-                    placeholder={method === 'instapay' ? 'name@instapay' : '01xxxxxxxxx'} />
-                </Field>
-
-                <Field label="Screenshot of the transfer" >
-                  <label className="btn" style={{ width: 'fit-content' }}>
-                    <Paperclip />{proof ? proof.name : 'Choose a file'}
-                    <input type="file" accept="image/*,application/pdf" hidden
-                      onChange={e => setProof(e.target.files?.[0] ?? null)} />
-                  </label>
-                </Field>
-
-                <Field label="Anything the admin should know">
-                  <textarea className="inp" rows={2} value={note} onChange={e => setNote(e.target.value)} />
-                </Field>
-
-                <div className="row g8">
-                  <button className="btn primary" disabled={busy} onClick={() => void charge()}>
-                    {busy ? <Loader2 className="spin" /> : <WalletIcon />}
-                    {busy ? 'Filing…' : 'File this transfer'}
-                  </button>
-                  <button className="btn ghost" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
+            <Field label="How much you sent (EGP)">
+              <div className="stack g8">
+                <input className="inp" type="number" min={1} value={amount}
+                  onChange={e => setAmount(e.target.value)} style={{ maxWidth: 200 }} />
+                <div className="row g6 wrap">
+                  {QUICK.map(q => (
+                    <button key={q} type="button" className="role-pill" data-on={amount === String(q)}
+                      onClick={() => setAmount(String(q))}>{money(q)}</button>
+                  ))}
                 </div>
               </div>
+            </Field>
+
+            <Field label="How you sent it">
+              <div className="row g8 wrap">
+                {METHODS.map(m => (
+                  <button key={m.value} type="button" className="role-pill" data-on={method === m.value}
+                    onClick={() => setMethod(m.value)}>
+                    <m.icon />{PAY_METHOD_LABEL[m.value]}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field
+              label={method === 'instapay' ? 'The InstaPay address you sent from' : 'The number you sent from'}
+            >
+              <input className="inp" value={senderRef} onChange={e => setSenderRef(e.target.value)}
+                placeholder={method === 'instapay' ? 'name@instapay' : '01xxxxxxxxx'} />
+            </Field>
+
+            <Field label="Screenshot of the transfer" >
+              <label className="btn" style={{ width: 'fit-content' }}>
+                <Paperclip />{proof ? proof.name : 'Choose a file'}
+                <input type="file" accept="image/*,application/pdf" hidden
+                  onChange={e => setProof(e.target.files?.[0] ?? null)} />
+              </label>
+            </Field>
+
+            <Field label="Anything the admin should know">
+              <textarea className="inp" rows={2} value={note} onChange={e => setNote(e.target.value)} />
+            </Field>
+
+            <div className="row g8">
+              <button className="btn primary" disabled={busy} onClick={() => void charge()}>
+                {busy ? <Loader2 className="spin" /> : <WalletIcon />}
+                {busy ? 'Filing…' : 'File this transfer'}
+              </button>
+              <button className="btn ghost" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
             </div>
-          </section>
-        )}
+          </div>
+        </Modal>
 
         {/* ---- every movement ---- */}
         <section className="card">
@@ -250,6 +244,25 @@ export function ParentWallet() {
                     <span className="stack g2" style={{ textAlign: 'end' }}>
                       <b className="t-sm">+{money(p.amount_egp)}</b>
                       <Badge tone="gold" dot>Pending</Badge>
+                    </span>
+                  </article>
+                ))}
+
+                {rejected.map(p => (
+                  <article key={p.id} className="wal-row" data-move="rejected">
+                    <span className="wal-ico"><AlertTriangle /></span>
+                    <span className="stack g2 grow" style={{ minWidth: 0 }}>
+                      <span className="t-sm w-med">Top-up not accepted</span>
+                      <span className="t-xs c-muted2">
+                        {PAY_METHOD_LABEL[p.method]} · filed {dateTime(p.created_at)}
+                      </span>
+                      <span className="t-xs c-muted2">
+                        Reason: {p.review_note?.trim() || 'The admin did not leave a reason.'}
+                      </span>
+                    </span>
+                    <span className="stack g2" style={{ textAlign: 'end' }}>
+                      <b className="t-sm">{money(p.amount_egp)}</b>
+                      <Badge tone="rose" dot>Rejected</Badge>
                     </span>
                   </article>
                 ))}

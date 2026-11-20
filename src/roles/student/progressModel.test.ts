@@ -80,7 +80,7 @@ describe('markSessions', () => {
     const other = session('s9', 'l2', 1)
     const marks = markSessions([other, s2, s1], loops, {}, [])
     expect(marks.map(m => m.id)).toEqual(['s1', 's2', 's9'])
-    expect(marks.map(m => m.short)).toEqual(['S1', 'S2', 'S3'])
+    expect(marks.map(m => m.short)).toEqual(['Session 1', 'Session 2', 'Session 3'])
   })
 })
 
@@ -108,6 +108,29 @@ describe('markProjects', () => {
     expect(p.progress).toBe(50)
     expect(p.stepsDone).toBe(1)
     expect(p.stepsTotal).toBe(2)
+  })
+
+  /* What a project is called follows the session it sits in, and a session
+     that never said falls back to its course. */
+  it('carries the kind of session each project sits in', () => {
+    const work = { ...loop('l2', 2), kind: 'work' as const }
+    const s2 = session('s2', 'l2', 1, { titles: [title('p2', { kind: 'project' })] })
+    const rows = markProjects([s1, s2], [loops[0], work], {})
+    expect(rows.map(p => p.kind)).toEqual(['teaching', 'work'])
+  })
+
+  /* The hybrid: one build week inside a course that otherwise teaches, and
+     one taught week inside a course that otherwise builds. */
+  it('lets a session disagree with its course', () => {
+    const work = { ...loop('l2', 2), kind: 'work' as const }
+    const build = session('s2', 'l1', 2, {
+      kind: 'work', titles: [title('p2', { kind: 'project' })],
+    })
+    const teach = session('s3', 'l2', 1, {
+      kind: 'teaching', titles: [title('p3', { kind: 'project' })],
+    })
+    const rows = markProjects([s1, build, teach], [loops[0], work], {})
+    expect(rows.map(p => p.kind)).toEqual(['teaching', 'work', 'teaching'])
   })
 })
 

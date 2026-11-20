@@ -277,6 +277,40 @@ export interface ValueLists {
   skills?: TrackSkill[]
 }
 
+/* ---------- what a session is for ----------
+   The course says what its sessions are for; a session only speaks up when
+   it disagrees. That disagreement is the whole point: a training course can
+   hold the one week where the student stops learning and builds, and a work
+   course the one week where something has to be taught first.
+
+   Unset is not a third kind — it means "whatever the course is", which is
+   what every session saved before this existed meant. See `sessionKind()`,
+   which is the only honest way to read it. */
+export type SessionKind = 'teaching' | 'work'
+
+export const SESSION_KIND_META: Record<SessionKind, {
+  /** The session itself, as the admin picks it. */
+  label: string
+  /** The badge on a card, where the word "session" is already in the frame. */
+  short: string
+  tone: string
+  /** What a project inside a session of this kind is called. */
+  project: string
+  /** What the admin reads under the control that sets it. */
+  hint: string
+}> = {
+  teaching: {
+    label: 'Teaching session', short: 'Teaching', tone: 'brand', project: 'Training project',
+    hint: 'A session that teaches — topics, their recordings and their questions.',
+  },
+  work: {
+    label: 'Work session', short: 'Work', tone: 'gold', project: 'Production project',
+    hint: 'A session where the student builds an asset of their own.',
+  },
+}
+
+export const SESSION_KINDS: SessionKind[] = ['teaching', 'work']
+
 export interface Session extends ValueLists {
   id: string
   code: string
@@ -296,6 +330,10 @@ export interface Session extends ValueLists {
   /** A preview of this session, shown in the Marketplace outline — separate
    *  from the teaching recordings on its topics. See `Track.videoUrl`. */
   videoUrl?: string | null
+  /** What this one session is for, when it differs from its course — see
+   *  SessionKind. Unset follows the course, which is what every session
+   *  saved before the two kinds existed did. */
+  kind?: SessionKind
   /** The card's picture: an image URL, or `storage://…` for an uploaded one.
    *  Empty falls back to the programme colour, exactly as before. */
   cover?: string
@@ -308,6 +346,42 @@ export interface Session extends ValueLists {
   updatedAt: string
 }
 
+/* ---------- what a course is for ----------
+   Two kinds, and the difference is what the student does in it: a training
+   course teaches, a work course produces. They are the same three levels and
+   the same session editor — Work used to be a second admin area of its own,
+   and that split turned out to be on the wrong thing. One program can hold
+   both. Unset reads as training: every course saved before the kind existed
+   was one.
+
+   What the course picks here is the default for its sessions, not a rule
+   over them: a session that says otherwise wins — see SessionKind. That is
+   what makes a course hybrid. */
+export type CourseKind = 'training' | 'work'
+
+export const COURSE_KIND_META: Record<CourseKind, {
+  /** The course itself, as the admin picks it. */
+  label: string
+  /** The badge on a card, where the word "course" is already in the frame. */
+  short: string
+  tone: string
+  /** The kind its sessions are unless one of them says otherwise. */
+  session: SessionKind
+  /** What the admin reads under the control that sets it. */
+  hint: string
+}> = {
+  training: {
+    label: 'Training course', short: 'Training', tone: 'brand', session: 'teaching',
+    hint: 'Mostly sessions that teach — the syllabus the student works through.',
+  },
+  work: {
+    label: 'Work course', short: 'Work', tone: 'gold', session: 'work',
+    hint: 'Mostly sessions where the student builds an asset of their own.',
+  },
+}
+
+export const COURSE_KINDS: CourseKind[] = ['training', 'work']
+
 export interface Loop extends ValueLists {
   id: string
   code: string
@@ -319,6 +393,11 @@ export interface Loop extends ValueLists {
   endDate: string
   status: 'planning' | 'running' | 'closed'
   cohortIds: string[]
+  /** What the course is for — see CourseKind. Unset reads as training. */
+  kind?: CourseKind
+  /** The admin's lock: a locked course cannot be opened by a student or a
+   *  family. Unset reads as open. */
+  locked?: boolean
   /** Lectures a week for this course, 1 or 2 — the course's rhythm, set by
    *  the admin on Programs. A family picks which days those fall on, and a
    *  section on every other day of the week. Unset reads as 1. */
@@ -343,6 +422,34 @@ export interface Loop extends ValueLists {
   /** A video per tab — see TabVideos. */
   tabVideos?: TabVideos
 }
+
+/** Closed to students: the course's own lock, or its program's. */
+export const courseLocked = (
+  track: Pick<Track, 'locked'> | undefined,
+  loop: Pick<Loop, 'locked'> | undefined,
+): boolean => !!(track?.locked || loop?.locked)
+
+/** What a course is for, with the old default spelled out in one place. */
+export const courseKind = (l: Pick<Loop, 'kind'> | undefined): CourseKind => l?.kind ?? 'training'
+
+/** What a session in this course is, when the session itself says nothing. */
+export const courseSessionKind = (l: Pick<Loop, 'kind'> | undefined): SessionKind =>
+  COURSE_KIND_META[courseKind(l)].session
+
+/** What a session is for: its own answer if it has one, else its course's.
+ *  Every screen that shows the kind reads it through here, so a course
+ *  changing its mind carries every session that never disagreed. */
+export const sessionKind = (
+  s: Pick<Session, 'kind'>,
+  loop: Pick<Loop, 'kind'> | undefined,
+): SessionKind => s.kind ?? courseSessionKind(loop)
+
+/** Whether this session was set apart from the course it sits in — the only
+ *  thing worth badging, since the rest just read as their course. */
+export const sessionDiffers = (
+  s: Pick<Session, 'kind'>,
+  loop: Pick<Loop, 'kind'> | undefined,
+): boolean => s.kind != null && s.kind !== courseSessionKind(loop)
 
 /* ---------- where a program sits on the path ----------
    Derived from the program graph in lib/programs, never typed twice: the
@@ -392,10 +499,6 @@ export interface TabVideos {
   lists?: Record<string, string>
 }
 
-/** Material is what the student learns from; Work is where they work on
- *  their own assets. Each has its own programs — see lib/area. */
-export type ContentArea = 'material' | 'work'
-
 export interface Track {
   id: string
   name: string
@@ -410,8 +513,9 @@ export interface Track {
    *  Unset reads as listed: what Material holds is what is on sale, and this
    *  is the switch that takes one off. */
   listed?: boolean
-  /** The area the program, its courses and its sessions live in. Unset is Material. */
-  area?: ContentArea
+  /** The admin's lock: a locked program is closed to students and families
+   *  whatever its courses say. Unset reads as open. */
+  locked?: boolean
   /** Where it sits on the path. Unset means it is worked out from the
    *  connections — see stageOf() in lib/programs. */
   stage?: ProgramStage
@@ -530,6 +634,15 @@ export const MATERIAL_META: Record<MaterialKind, { label: string; tone: string }
   /** An extra recording in a topic — the first one lives on the topic itself. */
   video: { label: 'Video', tone: 'brand' },
 }
+
+/** Whether a file is really a recording — something to watch where it sits,
+ *  not to open in the workbook beside the video.
+ *
+ *  Two fields can say so and either is enough: `kind` is what the file is,
+ *  `category` is what the step was labelled in the sequence, and an admin
+ *  who sets one and not the other meant the same thing both times. */
+export const isClip = (m: Pick<Material, 'kind' | 'category'>): boolean =>
+  m.kind === 'video' || m.category === 'video'
 
 /* ==========================================================================
    Marketplace catalogue

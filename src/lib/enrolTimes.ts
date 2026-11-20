@@ -14,7 +14,7 @@ export interface TimeGap {
   missing: SlotKind[]
 }
 
-const trackOnSale = (t: Track): boolean => t.area !== 'work' && (t.listed ?? true)
+const trackOnSale = (t: Track): boolean => t.listed ?? true
 const loopOnSale = (l: Loop): boolean => l.listed ?? true
 
 export function timeGaps(db: Catalogue, windows: AvailabilityWindowRow[]): TimeGap[] {

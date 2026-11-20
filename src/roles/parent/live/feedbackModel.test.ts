@@ -74,7 +74,7 @@ describe('markSessions', () => {
     const other = session('s0', 'l0', 1)
     const marks = markSessions([s2, other, s1], [loop('l0', 0), loop('l1', 1)], {}, [])
     expect(marks.map(m => m.sessionId)).toEqual(['s0', 's1', 's2'])
-    expect(marks.map(m => m.short)).toEqual(['S1', 'S2', 'S3'])
+    expect(marks.map(m => m.short)).toEqual(['Session 1', 'Session 2', 'Session 3'])
   })
 
   it('leaves focus on the walk-through until something has been graded', () => {
@@ -141,5 +141,25 @@ describe('markProjects', () => {
 
   it('leaves the teaching topics out of it', () => {
     expect(markProjects([session('s4', 'l1', 1, { titles: [title('t4')] })], loops, {})).toEqual([])
+  })
+
+  /* What a project is called follows the session it sits in, and a session
+     that never said falls back to its course. */
+  it('carries the kind of session each project sits in', () => {
+    const work = { ...loop('l2', 2), kind: 'work' as const }
+    const there = session('s5', 'l2', 1, {
+      titles: [title('p5', { kind: 'project' })],
+    })
+    const rows = markProjects([built, there], [loops[0], work], {})
+    expect(rows.map(r => r.kind)).toEqual(['teaching', 'work'])
+  })
+
+  /* The hybrid: the one build week inside a course that otherwise teaches. */
+  it('lets a session disagree with its course', () => {
+    const build = session('s6', 'l1', 2, {
+      kind: 'work', titles: [title('p6', { kind: 'project' })],
+    })
+    const rows = markProjects([built, build], loops, {})
+    expect(rows.map(r => r.kind)).toEqual(['teaching', 'work'])
   })
 })

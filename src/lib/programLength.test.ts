@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   askLine, askProblem, availabilityLine, courseHours, hoursLabel, lengthOfAsk, minutesLabel,
-  parseAsk, programHours, sectionDays,
+  parseAsk, programHours, sectionDays, sessionLength,
 } from './programLength'
 
 describe('labels', () => {
@@ -231,12 +231,34 @@ describe('programHours sums its courses', () => {
     expect(programHours([{ id: 'l1' }, { id: 'l3', durationHours: 5 }], sessions)).toBe(7)
   })
 
-  it('says nothing when a course has no hours at all', () => {
-    expect(programHours([{ id: 'l1' }, { id: 'l3' }], sessions)).toBeNull()
+  it('leaves an empty course out rather than hiding the whole length', () => {
+    expect(programHours([{ id: 'l1' }, { id: 'l3' }], sessions)).toBe(2)
+  })
+
+  it('says nothing when no course has any hours', () => {
+    expect(programHours([{ id: 'l3' }], sessions)).toBeNull()
     expect(programHours([], sessions)).toBeNull()
   })
 
   it('reads the typed hours when nobody passes the sessions', () => {
     expect(programHours([{ id: 'l1', durationHours: 4 }])).toBe(4)
+  })
+})
+
+describe('sessionLength', () => {
+  it('uses the set length for a live session', () => {
+    expect(sessionLength({ loopId: 'l', type: 'live', durationMin: 90, titles: [{ estimatedMin: 10 }] })).toBe(90)
+  })
+
+  it('adds up the videos of a recorded session', () => {
+    expect(sessionLength({
+      loopId: 'l', type: 'recorded', durationMin: 0,
+      titles: [{ video: { durationSec: 600 } }, { video: { durationSec: 1200 } }],
+    })).toBe(30)
+  })
+
+  it('falls back to the topic estimates, then the stored length', () => {
+    expect(sessionLength({ loopId: 'l', type: 'recorded', durationMin: 0, titles: [{ estimatedMin: 15 }, { estimatedMin: 5 }] })).toBe(20)
+    expect(sessionLength({ loopId: 'l', type: 'recorded', durationMin: 45, titles: [] })).toBe(45)
   })
 })

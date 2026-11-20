@@ -10,17 +10,17 @@ import { sessionFlow, useStore } from '@/lib/store'
 import { Badge, Empty, Splitter, usePaneSize } from '@/components/ui'
 import { bytes, duration, mins } from '@/lib/format'
 import {
-  MATERIAL_META, STEP_TYPE_META, TASK_META, TITLE_KIND_META, titleKind, titleLabel, titleNumber,
-  videoChecks,
+  MATERIAL_META, STEP_TYPE_META, TASK_META, TITLE_KIND_META, isClip, titleKind, titleLabel,
+  titleNumber, videoChecks, courseLocked,
 } from '@/lib/types'
 import type { Material, Session, Step, StepType, Task, Title } from '@/lib/types'
 import { backendLive } from '@/lib/supabase'
-import { AREA_META, trackArea } from '@/lib/area'
 import { useAuthStore } from '@/lib/authStore'
 import { submitAnswer, subKey, useSubmissions } from '@/lib/api/submissions'
 import { openFile, uploadSubmission } from '@/lib/api/storage'
 import { toMessage } from '@/lib/api/errors'
 import { IMAGE_ACCEPT, pickFile } from '@/roles/admin/editor/uploads'
+import { VideoEmbed } from '@/components/VideoEmbed'
 import { AnnotationCanvas } from './AnnotationCanvas'
 import { Crumbs } from './Missions'
 import { isOpen, sessionMinutes, useMe } from './useMe'
@@ -634,8 +634,9 @@ export function SessionView() {
   const session = db.sessions.find(s => s.id === sessionId)
   const loop = db.loops.find(l => l.id === session?.loopId)
   const track = db.tracks.find(t => t.id === loop?.trackId)
-  /* Back up the tree the session came from — Missions, or Work. */
-  const { student: areaBase, studentLabel: areaLabel } = AREA_META[trackArea(track)]
+  /* Back up the tree the session came from. */
+  const areaBase = '/student/missions'
+  const areaLabel = 'Missions'
 
   const [matOpen, setMatOpen] = useState(true)
   const [matId, setMatId] = useState('')
@@ -664,12 +665,13 @@ export function SessionView() {
   const steps = useMemo(() => (session ? sessionFlow(session) : []), [session])
 
   /** Files in sequence order, so the workbook's pills read the same way. A
-   *  live step is a class, not something to open in the workbook. */
+   *  live step is a class, not something to open in the workbook, and a
+   *  recording is watched where it sits rather than opened beside itself. */
   const files = useMemo<FileRef[]>(() => steps.flatMap(s => {
     if (s.kind !== 'material' || s.type === 'live') return []
     const t = byTitle.get(s.titleId)
     const m = t?.materials.find(x => x.id === s.refId)
-    return t && m ? [{ material: m, title: t }] : []
+    return t && m && !isClip(m) ? [{ material: m, title: t }] : []
   }), [steps, byTitle])
 
   /* The contents rail, grouped by topic. Steps keep their number in the
@@ -721,12 +723,12 @@ export function SessionView() {
     if (main) main.scrollTop = 0
   }, [activeKey])
 
-  if (!session || !isOpen(session)) {
+  if (!session || !isOpen(session) || courseLocked(track, loop)) {
     return (
       <div className="page">
         <Empty
           icon={<Lock />}
-          title={session ? 'This session is not open yet' : 'Session not found'}
+          title={session ? (courseLocked(track, loop) ? 'This course is locked' : 'This session is not open yet') : 'Session not found'}
           action={<BackLink className="btn" to={areaBase}>Back to {areaLabel.toLowerCase()}</BackLink>}
         />
       </div>
@@ -895,10 +897,33 @@ export function SessionView() {
                   </div>
                 )}
 
+                {/* An extra recording — a project's steps are one each. A
+                    topic's own video is `step.kind === 'video'` above; this
+                    is the other place a recording lives, and it plays here
+                    rather than opening as a file, because a file panel is
+                    not a thing you can watch. */}
+                {step.kind === 'material' && stepFile && isClip(stepFile) && step.type !== 'live' && (
+                  <div className="stack g10">
+                    <h2 className="t-xl w-sb">{stepFile.name}</h2>
+                    {stepFile.url ? (
+                      <VideoEmbed url={stepFile.url} title={stepFile.name} />
+                    ) : (
+                      <div className="card" style={{ padding: 14 }}>
+                        <span className="t-sm c-muted2">
+                          Your mentor has not posted this recording yet.
+                        </span>
+                      </div>
+                    )}
+                    {stepFile.note && (
+                      <p className="t-sm c-muted" style={{ lineHeight: 1.7 }}>{stepFile.note}</p>
+                    )}
+                  </div>
+                )}
+
                 {/* The file opens in the workbook beside the video rather than
                     inline, so it can be read while the recording plays and
                     drawn on. */}
-                {step.kind === 'material' && stepFile && step.type !== 'live' && (
+                {step.kind === 'material' && stepFile && !isClip(stepFile) && step.type !== 'live' && (
                   <button className="sv-file"
                     data-on={(matShown && openFileId === stepFile.id) || undefined}
                     onClick={() => {
